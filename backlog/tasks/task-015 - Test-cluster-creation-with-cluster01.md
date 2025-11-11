@@ -4,7 +4,7 @@ title: Test cluster creation with cluster01
 status: Done
 assignee: []
 created_date: '2025-11-11 14:59'
-updated_date: '2025-11-11 17:18'
+updated_date: '2025-11-11 17:19'
 labels:
   - testing
   - e2e
@@ -65,23 +65,47 @@ Critical Bug Fixed:
 - Added conversion and copy operations for .p12 format
 - Commit: ed09f47
 
-Cluster Status:
-- connectedNodes: "3 / 3"
-- connectedNodeCount: 3
-- totalNodeCount: 3
-- connectedToCluster: true
-- clustered: true
+SSL/TLS Certificate Validation (using CA root certificate):
+CA Certificate: certs/ca/ca-cert.pem
 
-Authentication Verified:
-- Node 1 (30443): ✅ JWT token obtained
-- Node 2 (30444): ✅ JWT token obtained
-- Node 3 (30445): ✅ JWT token obtained
+Node 1 (30443):
+  Web UI: curl --cacert certs/ca/ca-cert.pem https://localhost:30443/nifi/ → HTTP/2 200 ✓
+  Login: POST /nifi-api/access/token → JWT token (446 chars) ✓
+  Backend API: GET /nifi-api/flow/cluster/summary → cluster status ✓
 
-Backend Connectivity:
+Node 2 (30444):
+  Web UI: curl --cacert certs/ca/ca-cert.pem https://localhost:30444/nifi/ → HTTP/2 200 ✓
+  Login: POST /nifi-api/access/token → JWT token (446 chars) ✓
+  Backend API: GET /nifi-api/flow/cluster/summary → cluster status ✓
+
+Node 3 (30445):
+  Web UI: curl --cacert certs/ca/ca-cert.pem https://localhost:30445/nifi/ → HTTP/2 200 ✓
+  Login: POST /nifi-api/access/token → JWT token (446 chars) ✓
+  Backend API: GET /nifi-api/flow/cluster/summary → cluster status ✓
+
+All nodes validate correctly with CA certificate - no insecure -k flag needed.
+
+Cluster Status (verified on all 3 nodes):
+{
+  "connectedNodes": "3 / 3",
+  "connectedNodeCount": 3,
+  "totalNodeCount": 3,
+  "connectedToCluster": true,
+  "clustered": true
+}
+
+Authentication & Backend API Access:
+- All 3 nodes: JWT authentication working ✓
+- All 3 nodes: Backend API endpoints responding ✓
+- All 3 nodes: Cluster coordinator operational ✓
+- Credentials: admin / changeme123456
+
+Backend Connectivity Tests:
 - API endpoints responding on all nodes
 - Cluster coordinator operational (nifi-1:8082)
 - Heartbeats working: 7-13ms latency
-- No certificate errors
+- No certificate trust errors
+- TLS handshake successful with CA certificate
 
 Flow Creation Test:
 - Successfully created GenerateFlowFile processor via API
