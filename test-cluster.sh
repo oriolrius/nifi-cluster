@@ -263,6 +263,120 @@ test_ssl_certificate_validation() {
     echo ""
 }
 
+test_flow_replication() {
+    print_header "9. Flow Replication Test"
+
+    print_test "Creating test processor on Node 1..."
+
+    # Get token for Node 1
+    PORT=$BASE_PORT
+    TOKEN="$NODE_1_TOKEN"
+
+    if [ -z "$TOKEN" ]; then
+        print_fail "No token available for Node 1"
+        echo ""
+        return
+    fi
+
+    # Get root process group ID
+    ROOT_PG=$(curl --cacert "$CA_CERT" -s \
+        -H "Authorization: Bearer $TOKEN" \
+        https://localhost:$PORT/nifi-api/flow/process-groups/root 2>/dev/null | \
+        jq -r '.processGroupFlow.id')
+
+    if [ -z "$ROOT_PG" ] || [ "$ROOT_PG" == "null" ]; then
+        print_fail "Could not get root process group ID"
+        echo ""
+        return
+    fi
+
+    # Create a test processor with unique name
+    TIMESTAMP=$(date +%s)
+    PROCESSOR_NAME="ClusterReplicationTest-$TIMESTAMP"
+
+    RESPONSE=$(curl --cacert "$CA_CERT" -s -X POST \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        https://localhost:$PORT/nifi-api/process-groups/$ROOT_PG/processors \
+        -d "{
+            \"revision\": {\"version\": 0},
+            \"component\": {
+                \"type\": \"org.apache.nifi.processors.standard.GenerateFlowFile\",
+                \"name\": \"$PROCESSOR_NAME\",
+                \"position\": {\"x\": 300, \"y\": 300},
+                \"config\": {
+                    \"schedulingPeriod\": \"60 sec\",
+                    \"autoTerminatedRelationships\": [\"success\"],
+                    \"properties\": {
+                        \"File Size\": \"1KB\",
+                        \"Batch Size\": \"1\"
+                    }
+                }
+            }
+        }" 2>/dev/null)
+
+    PROCESSOR_ID=$(echo "$RESPONSE" | jq -r '.id')
+
+    if [ -n "$PROCESSOR_ID" ] && [ "$PROCESSOR_ID" != "null" ]; then
+        print_pass "Test processor created: $PROCESSOR_NAME"
+        print_info "Processor ID: $PROCESSOR_ID"
+    else
+        print_fail "Failed to create test processor"
+        echo ""
+        return
+    fi
+
+    # Wait for replication
+    print_info "Waiting 5 seconds for cluster replication..."
+    sleep 5
+
+    # Check replication on all nodes
+    print_test "Verifying flow replication across all nodes..."
+
+    for i in $(seq 1 $NODE_COUNT); do
+        PORT=$((BASE_PORT + i - 1))
+        TOKEN_VAR="NODE_${i}_TOKEN"
+        TOKEN="${!TOKEN_VAR}"
+
+        if [ -z "$TOKEN" ]; then
+            print_fail "No token for Node $i"
+            continue
+        fi
+
+        # Check if processor exists on this node
+        FOUND=$(curl --cacert "$CA_CERT" -s \
+            -H "Authorization: Bearer $TOKEN" \
+            https://localhost:$PORT/nifi-api/flow/process-groups/$ROOT_PG 2>/dev/null | \
+            jq -r ".processGroupFlow.flow.processors[] | select(.component.name==\"$PROCESSOR_NAME\") | .id")
+
+        if [ -n "$FOUND" ] && [ "$FOUND" != "null" ]; then
+            print_pass "Node $i: Processor replicated successfully"
+        else
+            print_fail "Node $i: Processor NOT found (replication failed)"
+        fi
+    done
+
+    # Cleanup: Delete the test processor
+    print_test "Cleaning up test processor..."
+
+    # Get current version
+    CURRENT_VERSION=$(curl --cacert "$CA_CERT" -s \
+        -H "Authorization: Bearer $NODE_1_TOKEN" \
+        https://localhost:$BASE_PORT/nifi-api/processors/$PROCESSOR_ID 2>/dev/null | \
+        jq -r '.revision.version')
+
+    if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" != "null" ]; then
+        curl --cacert "$CA_CERT" -s -X DELETE \
+            -H "Authorization: Bearer $NODE_1_TOKEN" \
+            "https://localhost:$BASE_PORT/nifi-api/processors/$PROCESSOR_ID?version=$CURRENT_VERSION" \
+            > /dev/null 2>&1
+
+        print_info "Test processor deleted"
+    fi
+
+    echo ""
+}
+
 print_summary() {
     print_header "Test Summary"
 
@@ -306,6 +420,7 @@ main() {
     test_cluster_status
     test_zookeeper_health
     test_ssl_certificate_validation
+    test_flow_replication
     print_summary
 }
 
