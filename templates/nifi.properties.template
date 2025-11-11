@@ -9,7 +9,7 @@
 # - @@NODE_NAME@@           : Node-specific hostname (e.g., nifi-1, nifi-2, nifi-3)
 # - @@CLUSTER_NAME@@        : Cluster identifier (e.g., cluster01, cluster02)
 # - @@ZK_CONNECT_STRING@@   : ZooKeeper connection string (e.g., zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181)
-# - @@WEB_PROXY_HOSTS@@     : Comma-separated proxy hosts (e.g., localhost:59443,localhost:59444,localhost:59445)
+# - @@WEB_PROXY_HOSTS@@     : Comma-separated proxy hosts (e.g., localhost:30443,localhost:30444,localhost:30445)
 # - @@SENSITIVE_PROPS_KEY@@ : Encryption key for sensitive properties (must be same across cluster)
 
 ####################

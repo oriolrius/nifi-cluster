@@ -36,7 +36,7 @@ This document describes the **current production NiFi cluster** that is operatio
 │                                                 │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
 │  │ nifi-1  │  │ nifi-2  │  │ nifi-3  │        │
-│  │ :59443  │  │ :59444  │  │ :59445  │        │
+│  │ :30443  │  │ :30444  │  │ :30445  │        │
 │  └────┬────┘  └────┬────┘  └────┬────┘        │
 │       │            │            │              │
 │       └────────────┴────────────┘              │
@@ -45,7 +45,7 @@ This document describes the **current production NiFi cluster** that is operatio
 │       │                         │              │
 │  ┌────▼────┐  ┌─────────┐  ┌──▼──────┐        │
 │  │  zk-1   │  │  zk-2   │  │  zk-3   │        │
-│  │ :59181  │  │ :59182  │  │ :59183  │        │
+│  │ :30181  │  │ :30182  │  │ :30183  │        │
 │  └─────────┘  └─────────┘  └─────────┘        │
 │                                                 │
 └─────────────────────────────────────────────────┘
@@ -57,9 +57,9 @@ This document describes the **current production NiFi cluster** that is operatio
 ```
 Service          Node 1    Node 2    Node 3    Protocol
 ─────────────────────────────────────────────────────────
-NiFi Web UI      59443     59444     59445     HTTPS
-Site-to-Site     59100     59101     59102     RAW Socket
-ZooKeeper        59181     59182     59183     TCP
+NiFi Web UI      30443     30444     30445     HTTPS
+Site-to-Site     30100     30101     30102     RAW Socket
+ZooKeeper        30181     30182     30183     TCP
 ```
 
 **Internal Ports** (not exposed to host):
@@ -100,7 +100,7 @@ Port    Service                    Usage
 - ✅ Mutual TLS authentication between cluster nodes
 - ✅ Certificate-based node identity
 - ✅ Encrypted cluster communication (port 8082)
-- ✅ HTTPS web interface (ports 59443-59445)
+- ✅ HTTPS web interface (ports 30443-30445)
 - ✅ Single-user authentication (username/password)
 
 #### Authentication
@@ -119,9 +119,9 @@ This is the **most important setting** for enabling web UI access to different n
 **Port Mapping Architecture**:
 ```
 Browser Request:
-  https://localhost:59443/nifi
+  https://localhost:30443/nifi
         ↓
-  Docker Port Mapping (59443:8443)
+  Docker Port Mapping (30443:8443)
         ↓
   Container nifi-1 internal port 8443
         ↓
@@ -133,20 +133,20 @@ Browser Request:
 **How nifi.web.proxy.host Works**:
 
 ```properties
-nifi.web.proxy.host=localhost:59443,localhost:59444,localhost:59445,nifi-1:8443,nifi-2:8443,nifi-3:8443
+nifi.web.proxy.host=localhost:30443,localhost:30444,localhost:30445,nifi-1:8443,nifi-2:8443,nifi-3:8443
 ```
 
 This property tells NiFi which `Host` headers to accept. When you access:
-- `https://localhost:59443/nifi` → Browser sends `Host: localhost:59443`
-- `https://localhost:59444/nifi` → Browser sends `Host: localhost:59444`
-- `https://localhost:59445/nifi` → Browser sends `Host: localhost:59445`
+- `https://localhost:30443/nifi` → Browser sends `Host: localhost:30443`
+- `https://localhost:30444/nifi` → Browser sends `Host: localhost:30444`
+- `https://localhost:30445/nifi` → Browser sends `Host: localhost:30445`
 
 **Why Both localhost AND container hostnames?**
 
-1. **`localhost:59443`** - For external browser access from the host
-   - User types: `https://localhost:59443/nifi`
-   - Docker maps: `59443` (host) → `8443` (container)
-   - NiFi receives request with `Host: localhost:59443`
+1. **`localhost:30443`** - For external browser access from the host
+   - User types: `https://localhost:30443/nifi`
+   - Docker maps: `30443` (host) → `8443` (container)
+   - NiFi receives request with `Host: localhost:30443`
    - Validates against proxy host list ✓
 
 2. **`nifi-1:8443`** - For internal cluster communication
@@ -160,16 +160,16 @@ This property tells NiFi which `Host` headers to accept. When you access:
 
 If `nifi.web.proxy.host` is not set correctly:
 ```
-Browser → https://localhost:59443/nifi
-NiFi receives Host: localhost:59443
-NiFi checks: Is "localhost:59443" in my proxy host list?
+Browser → https://localhost:30443/nifi
+NiFi receives Host: localhost:30443
+NiFi checks: Is "localhost:30443" in my proxy host list?
 Result: NO → HTTP 403 Forbidden or redirect loop
 ```
 
 **Certificate Validation Flow**:
 
 ```
-1. Browser connects to localhost:59443
+1. Browser connects to localhost:30443
    ↓
 2. TLS handshake with nifi-1's certificate
    - Certificate CN: nifi-1
@@ -181,10 +181,10 @@ Result: NO → HTTP 403 Forbidden or redirect loop
    - Certificate trusted (self-signed, user accepts)
    ↓
 4. Browser sends HTTP request
-   - Host: localhost:59443
+   - Host: localhost:30443
    ↓
 5. NiFi validates Host header
-   - Is "localhost:59443" in nifi.web.proxy.host? ✓
+   - Is "localhost:30443" in nifi.web.proxy.host? ✓
    - Proceed to serve request
 ```
 
@@ -194,14 +194,14 @@ Each node maps different external ports to the same internal port:
 
 | Container | Internal Port | External Port | Access URL |
 |-----------|---------------|---------------|------------|
-| nifi-1    | 8443          | 59443         | https://localhost:59443/nifi |
-| nifi-2    | 8443          | 59444         | https://localhost:59444/nifi |
-| nifi-3    | 8443          | 59445         | https://localhost:59445/nifi |
+| nifi-1    | 8443          | 30443         | https://localhost:30443/nifi |
+| nifi-2    | 8443          | 30444         | https://localhost:30444/nifi |
+| nifi-3    | 8443          | 30445         | https://localhost:30445/nifi |
 
 **Why This Matters for Multi-Cluster**:
 
 When creating multiple clusters, each cluster needs:
-1. **Unique external ports** (59143-59145 for cluster01, 59243-59245 for cluster02)
+1. **Unique external ports** (30443-30445 for cluster01, 31443-31445 for cluster02)
 2. **Correct proxy host configuration** listing all external ports
 3. **Certificates with localhost SAN** to allow host access
 4. **Matching container hostnames** in proxy host list
@@ -210,12 +210,12 @@ When creating multiple clusters, each cluster needs:
 
 Cluster 01:
 ```properties
-nifi.web.proxy.host=localhost:59143,localhost:59144,localhost:59145,cluster01-nifi01:8443,cluster01-nifi02:8443,cluster01-nifi03:8443
+nifi.web.proxy.host=localhost:30443,localhost:30444,localhost:30445,cluster01-nifi01:8443,cluster01-nifi02:8443,cluster01-nifi03:8443
 ```
 
 Cluster 02:
 ```properties
-nifi.web.proxy.host=localhost:59243,localhost:59244,localhost:59245,cluster02-nifi01:8443,cluster02-nifi02:8443,cluster02-nifi03:8443
+nifi.web.proxy.host=localhost:31443,localhost:31444,localhost:31445,cluster02-nifi01:8443,cluster02-nifi02:8443,cluster02-nifi03:8443
 ```
 
 **Troubleshooting Connection Issues**:
@@ -301,7 +301,7 @@ nifi.zookeeper.root.node=/nifi
 
 # Web configuration
 nifi.web.https.port=8443
-nifi.web.proxy.host=localhost:59443,localhost:59444,localhost:59445,nifi-1:8443,nifi-2:8443,nifi-3:8443
+nifi.web.proxy.host=localhost:30443,localhost:30444,localhost:30445,nifi-1:8443,nifi-2:8443,nifi-3:8443
 
 # Security
 nifi.security.keystore=./conf/keystore.p12
@@ -341,8 +341,8 @@ nifi-1:
   networks:
     - nifi-cluster-network
   ports:
-    - "59443:8443"    # HTTPS UI
-    - "59100:10000"   # Site-to-Site
+    - "30443:8443"    # HTTPS UI
+    - "30100:10000"   # Site-to-Site
   environment:
     NIFI_CLUSTER_IS_NODE: "true"
     NIFI_CLUSTER_NODE_ADDRESS: nifi-1
@@ -350,7 +350,7 @@ nifi-1:
     NIFI_ZK_CONNECT_STRING: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
     NIFI_WEB_HTTPS_PORT: 8443
     NIFI_WEB_HTTPS_HOST: nifi-1
-    NIFI_WEB_PROXY_HOST: localhost:59443,localhost:59444,localhost:59445,nifi-1:8443,nifi-2:8443,nifi-3:8443
+    NIFI_WEB_PROXY_HOST: localhost:30443,localhost:30444,localhost:30445,nifi-1:8443,nifi-2:8443,nifi-3:8443
     SINGLE_USER_CREDENTIALS_USERNAME: admin
     SINGLE_USER_CREDENTIALS_PASSWORD: changeme123456
     NIFI_JVM_HEAP_INIT: 2g
@@ -378,7 +378,7 @@ zookeeper-1:
   networks:
     - nifi-cluster-network
   ports:
-    - "59181:2181"
+    - "30181:2181"
   environment:
     ZOO_MY_ID: 1
     ZOO_SERVERS: server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181
@@ -434,9 +434,9 @@ docker compose logs -f nifi-2
 
 **Access Web UI**:
 ```
-https://localhost:59443/nifi   # Node 1
-https://localhost:59444/nifi   # Node 2
-https://localhost:59445/nifi   # Node 3
+https://localhost:30443/nifi   # Node 1
+https://localhost:30444/nifi   # Node 2
+https://localhost:30445/nifi   # Node 3
 
 Credentials: admin / changeme123456 (from .env)
 ```
@@ -449,15 +449,15 @@ Credentials: admin / changeme123456 (from .env)
 docker compose ps
 
 # Check NiFi cluster summary (from any node)
-curl -k -u admin:changeme123456 https://localhost:59443/nifi-api/flow/cluster/summary
+curl -k -u admin:changeme123456 https://localhost:30443/nifi-api/flow/cluster/summary
 ```
 
 **ZooKeeper Health**:
 ```bash
 # Check ZooKeeper status
-echo stat | nc localhost 59181
-echo stat | nc localhost 59182
-echo stat | nc localhost 59183
+echo stat | nc localhost 30181
+echo stat | nc localhost 30182
+echo stat | nc localhost 30183
 ```
 
 ---
@@ -654,7 +654,7 @@ docker compose up -d
 
 ### Issue 3: Web UI Not Accessible
 
-**Symptom**: Cannot access https://localhost:59443/nifi
+**Symptom**: Cannot access https://localhost:30443/nifi
 
 **Possible Causes**:
 - Container not started
@@ -726,9 +726,9 @@ docker compose up -d
 ### 8.1 Web UI
 
 **URLs**:
-- Node 1: https://localhost:59443/nifi
-- Node 2: https://localhost:59444/nifi
-- Node 3: https://localhost:59445/nifi
+- Node 1: https://localhost:30443/nifi
+- Node 2: https://localhost:30444/nifi
+- Node 3: https://localhost:30445/nifi
 
 **Credentials**:
 - Username: `admin` (from `.env`)
@@ -738,9 +738,9 @@ docker compose up -d
 
 **REST API Endpoints**:
 ```
-https://localhost:59443/nifi-api/
-https://localhost:59444/nifi-api/
-https://localhost:59445/nifi-api/
+https://localhost:30443/nifi-api/
+https://localhost:30444/nifi-api/
+https://localhost:30445/nifi-api/
 ```
 
 **Authentication**: Basic auth or token-based

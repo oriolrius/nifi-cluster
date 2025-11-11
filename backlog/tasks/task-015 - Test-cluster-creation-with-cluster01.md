@@ -23,7 +23,7 @@ Test steps:
 4. Start with docker compose up -d
 5. Verify all 3 NiFi nodes connect to cluster
 6. Verify ZooKeeper ensemble healthy
-7. Access web UI on ports 59143-59145
+7. Access web UI on ports 30443-30445
 8. Run post-deployment validation (section 13.2)
 
 Reference: Analysis report section 13

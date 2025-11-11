@@ -23,7 +23,7 @@ Test steps:
 3. Verify cluster01 and cluster02 both running
 4. Verify network isolation (no ping between clusters)
 5. Verify ZK root node isolation (/cluster01 vs /cluster02)
-6. Verify different port ranges (59143-59145 vs 59243-59245)
+6. Verify different port ranges (30443-30445 vs 31443-31445)
 7. Verify shared CA trust (both can use same truststore)
 8. Create flows in both clusters independently
 

@@ -18,7 +18,7 @@ Create script to generate all configuration files from templates for a cluster.
 
 Script should:
 - Accept CLUSTER_NAME, CLUSTER_NUM, NODE_COUNT parameters
-- Calculate port assignments using formula: BASE_PORT = 59000 + (CLUSTER_NUM * 100)
+- Calculate port assignments using formula: BASE_PORT = 29000 + (CLUSTER_NUM * 1000)
 - Generate nifi.properties for each node from template
 - Generate state-management.xml for each node from template
 - Copy standard config files (authorizers.xml, bootstrap.conf, etc.)

@@ -36,9 +36,9 @@ We currently operate a **single 3-node NiFi cluster** with the following charact
 ```
 Service          Node 1      Node 2      Node 3
 --------------------------------------------------------
-NiFi HTTPS       59443       59444       59445
-Site-to-Site     59100       59101       59102
-ZooKeeper        59181       59182       59183
+NiFi HTTPS       30443       30444       30445
+Site-to-Site     30100       30101       30102
+ZooKeeper        30181       30182       30183
 ```
 
 #### Security Architecture
@@ -119,7 +119,7 @@ nifi-cluster/
 
 ❌ **Hardcoded Configuration**
 - Service names hardcoded as `nifi-1`, `nifi-2`, `nifi-3`
-- Port ranges fixed to 59100-59199, 59443-59445
+- Port ranges fixed to 30000-30999, 30443-30445
 - Scripts assume single cluster deployment
 
 ❌ **No Multi-Tenancy**
@@ -222,7 +222,7 @@ nifi-cluster/
 │  │                     │      │                     │      │
 │  │  ZK Root: /cluster01│      │  ZK Root: /cluster02│      │
 │  │                     │      │                     │      │
-│  │  Ports: 59100-59199 │      │  Ports: 59200-59299 │      │
+│  │  Ports: 30000-30999 │      │  Ports: 31000-31999 │      │
 │  └─────────────────────┘      └─────────────────────┘      │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -282,28 +282,28 @@ nifi-cluster/
 
 **Formula**:
 ```bash
-CLUSTER_BASE = 59000 + (CLUSTER_NUM × 100)
+CLUSTER_BASE = 29000 + (CLUSTER_NUM × 1000)
 
 # For cluster01 (CLUSTER_NUM=1):
-CLUSTER_BASE = 59100
-HTTPS_PORTS  = 59143, 59144, 59145  (base + 43 + node_index)
-S2S_PORTS    = 59100, 59101, 59102  (base + node_index)
-ZK_PORTS     = 59181, 59182, 59183  (base + 81 + node_index)
+CLUSTER_BASE = 30100
+HTTPS_PORTS  = 30443, 30444, 30445  (base + 43 + node_index)
+S2S_PORTS    = 30100, 30101, 30102  (base + node_index)
+ZK_PORTS     = 30181, 30182, 30183  (base + 81 + node_index)
 
 # For cluster02 (CLUSTER_NUM=2):
-CLUSTER_BASE = 59200
-HTTPS_PORTS  = 59243, 59244, 59245
-S2S_PORTS    = 59200, 59201, 59202
-ZK_PORTS     = 59281, 59282, 59283
+CLUSTER_BASE = 31100
+HTTPS_PORTS  = 31443, 31444, 31445
+S2S_PORTS    = 31100, 31101, 31102
+ZK_PORTS     = 31181, 31182, 31183
 ```
 
 **Port Map**:
 | Cluster | Base  | HTTPS       | S2S         | ZooKeeper   |
 |---------|-------|-------------|-------------|-------------|
-| 01      | 59100 | 59143-59145 | 59100-59102 | 59181-59183 |
-| 02      | 59200 | 59243-59245 | 59200-59202 | 59281-59283 |
-| 03      | 59300 | 59343-59345 | 59300-59302 | 59381-59383 |
-| 04      | 59400 | 59443-59445 | 59400-59402 | 59481-59483 |
+| 01      | 30100 | 30443-30445 | 30100-30102 | 30181-30183 |
+| 02      | 31100 | 31443-31445 | 31100-31102 | 31181-31183 |
+| 03      | 32000 | 32443-32445 | 32000-32102 | 32181-32183 |
+| 04      | 33000 | 30443-30445 | 33000-33102 | 33181-33183 |
 
 #### Decision 5: Template-Based Configuration
 
