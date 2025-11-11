@@ -1,9 +1,11 @@
 ---
 id: task-016
 title: Test cluster creation with cluster02 and verify isolation
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@myself'
 created_date: '2025-11-11 14:59'
+updated_date: '2025-11-11 17:30'
 labels:
   - testing
   - isolation
