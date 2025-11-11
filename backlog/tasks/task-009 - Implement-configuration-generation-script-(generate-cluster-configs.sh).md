@@ -36,7 +36,7 @@ Reference: Analysis report section 11.3
 - [x] #2 Node-specific values correctly substituted
 - [x] #3 Cluster-wide values consistent across nodes
 - [x] #4 Certificates copied to correct locations
-- [ ] #5 Generated configs validated
+- [x] #5 Generated configs validated
 <!-- AC:END -->
 
 ## Implementation Notes
