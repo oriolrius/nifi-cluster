@@ -106,7 +106,8 @@ echo ""
 
 # Generate configuration for each node
 for i in $(seq 1 "$NODE_COUNT"); do
-    NODE_NAME="${CLUSTER_NAME}-nifi-${i}"
+    NODE_NAME="${CLUSTER_NAME}-nifi-${i}"    # Folder name (cluster-namespaced)
+    NODE_HOSTNAME="nifi-${i}"                # Docker hostname (simple, for DNS)
     CONF_DIR="${OUTPUT_DIR}/${NODE_NAME}"
     HTTPS_PORT=$((HTTPS_BASE + i - 1))
     S2S_PORT=$((S2S_BASE + i - 1))
@@ -202,7 +203,7 @@ nifi.components.status.snapshot.frequency=1 min
 #####################
 # Site-to-Site      #
 #####################
-nifi.remote.input.host=${NODE_NAME}
+nifi.remote.input.host=${NODE_HOSTNAME}
 nifi.remote.input.secure=true
 nifi.remote.input.socket.port=${S2S_PORT}
 nifi.remote.input.http.enabled=true
@@ -261,7 +262,7 @@ nifi.cluster.protocol.is.secure=true
 # Cluster Node Properties (node-specific)
 nifi.cluster.is.node=true
 nifi.cluster.leader.election.implementation=CuratorLeaderElectionManager
-nifi.cluster.node.address=${NODE_NAME}
+nifi.cluster.node.address=${NODE_HOSTNAME}
 nifi.cluster.node.protocol.port=${CLUSTER_PROTOCOL_BASE}
 nifi.cluster.node.protocol.max.threads=50
 nifi.cluster.node.event.history.size=25
@@ -326,31 +327,31 @@ EOF
     # Substitute ZooKeeper connect string
     sed -i "s|ZK_CONNECT_STRING|${ZK_CONNECT_STRING}|g" "$CONF_DIR/state-management.xml"
 
-    # Copy standard config files if they exist in nifi-1 or from Docker image defaults
+    # Copy standard config files from templates directory
     # These files are typically the same across all nodes
-    if [ -f "${SCRIPT_DIR}/nifi-1/authorizers.xml" ] && [ $i -ne 1 ]; then
-        echo "  → Copying authorizers.xml"
-        cp "${SCRIPT_DIR}/nifi-1/authorizers.xml" "$CONF_DIR/"
+    if [ -f "${SCRIPT_DIR}/templates/authorizers.xml" ]; then
+        echo "  → Copying authorizers.xml from templates"
+        cp "${SCRIPT_DIR}/templates/authorizers.xml" "$CONF_DIR/"
     fi
 
-    if [ -f "${SCRIPT_DIR}/nifi-1/bootstrap.conf" ] && [ $i -ne 1 ]; then
-        echo "  → Copying bootstrap.conf"
-        cp "${SCRIPT_DIR}/nifi-1/bootstrap.conf" "$CONF_DIR/"
+    if [ -f "${SCRIPT_DIR}/templates/bootstrap.conf" ]; then
+        echo "  → Copying bootstrap.conf from templates"
+        cp "${SCRIPT_DIR}/templates/bootstrap.conf" "$CONF_DIR/"
     fi
 
-    if [ -f "${SCRIPT_DIR}/nifi-1/logback.xml" ] && [ $i -ne 1 ]; then
-        echo "  → Copying logback.xml"
-        cp "${SCRIPT_DIR}/nifi-1/logback.xml" "$CONF_DIR/"
+    if [ -f "${SCRIPT_DIR}/templates/logback.xml" ]; then
+        echo "  → Copying logback.xml from templates"
+        cp "${SCRIPT_DIR}/templates/logback.xml" "$CONF_DIR/"
     fi
 
-    if [ -f "${SCRIPT_DIR}/nifi-1/login-identity-providers.xml" ] && [ $i -ne 1 ]; then
-        echo "  → Copying login-identity-providers.xml"
-        cp "${SCRIPT_DIR}/nifi-1/login-identity-providers.xml" "$CONF_DIR/"
+    if [ -f "${SCRIPT_DIR}/templates/login-identity-providers.xml" ]; then
+        echo "  → Copying login-identity-providers.xml from templates"
+        cp "${SCRIPT_DIR}/templates/login-identity-providers.xml" "$CONF_DIR/"
     fi
 
-    if [ -f "${SCRIPT_DIR}/nifi-1/zookeeper.properties" ] && [ $i -ne 1 ]; then
-        echo "  → Copying zookeeper.properties"
-        cp "${SCRIPT_DIR}/nifi-1/zookeeper.properties" "$CONF_DIR/"
+    if [ -f "${SCRIPT_DIR}/templates/zookeeper.properties" ]; then
+        echo "  → Copying zookeeper.properties from templates"
+        cp "${SCRIPT_DIR}/templates/zookeeper.properties" "$CONF_DIR/"
     fi
 
     # Copy certificates if they exist

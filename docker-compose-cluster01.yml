@@ -19,9 +19,9 @@ services:
       ZOO_SYNC_LIMIT: 5
       ZOO_MAX_CLIENT_CNXNS: 60
     volumes:
-      - ./volumes/zookeeper-1/data:/data
-      - ./volumes/zookeeper-1/datalog:/datalog
-      - ./volumes/zookeeper-1/logs:/logs
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-1/data:/data
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-1/datalog:/datalog
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-1/logs:/logs
     restart: unless-stopped
 
   # ZooKeeper Node 2
@@ -42,9 +42,9 @@ services:
       ZOO_SYNC_LIMIT: 5
       ZOO_MAX_CLIENT_CNXNS: 60
     volumes:
-      - ./volumes/zookeeper-2/data:/data
-      - ./volumes/zookeeper-2/datalog:/datalog
-      - ./volumes/zookeeper-2/logs:/logs
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-2/data:/data
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-2/datalog:/datalog
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-2/logs:/logs
     restart: unless-stopped
 
   # ZooKeeper Node 3
@@ -65,9 +65,9 @@ services:
       ZOO_SYNC_LIMIT: 5
       ZOO_MAX_CLIENT_CNXNS: 60
     volumes:
-      - ./volumes/zookeeper-3/data:/data
-      - ./volumes/zookeeper-3/datalog:/datalog
-      - ./volumes/zookeeper-3/logs:/logs
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-3/data:/data
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-3/datalog:/datalog
+      - ./clusters/cluster01/volumes/cluster01-zookeeper-3/logs:/logs
     restart: unless-stopped
 
   # NiFi Cluster Node 1
@@ -106,13 +106,13 @@ services:
       NIFI_JVM_HEAP_INIT: ${NIFI_JVM_HEAP_INIT:-2g}
       NIFI_JVM_HEAP_MAX: ${NIFI_JVM_HEAP_MAX:-2g}
     volumes:
-      - ./conf/nifi-1:/opt/nifi/nifi-current/conf:rw
-      - ./volumes/nifi-1/content_repository:/opt/nifi/nifi-current/content_repository
-      - ./volumes/nifi-1/database_repository:/opt/nifi/nifi-current/database_repository
-      - ./volumes/nifi-1/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
-      - ./volumes/nifi-1/provenance_repository:/opt/nifi/nifi-current/provenance_repository
-      - ./volumes/nifi-1/state:/opt/nifi/nifi-current/state
-      - ./volumes/nifi-1/logs:/opt/nifi/nifi-current/logs
+      - ./clusters/cluster01/conf/cluster01-nifi-1:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/cluster01/volumes/cluster01-nifi-1/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-1/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-1/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-1/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-1/state:/opt/nifi/nifi-current/state
+      - ./clusters/cluster01/volumes/cluster01-nifi-1/logs:/opt/nifi/nifi-current/logs
     depends_on:
       - zookeeper-1
       - zookeeper-2
@@ -161,13 +161,13 @@ services:
       NIFI_JVM_HEAP_INIT: ${NIFI_JVM_HEAP_INIT:-2g}
       NIFI_JVM_HEAP_MAX: ${NIFI_JVM_HEAP_MAX:-2g}
     volumes:
-      - ./conf/nifi-2:/opt/nifi/nifi-current/conf:rw
-      - ./volumes/nifi-2/content_repository:/opt/nifi/nifi-current/content_repository
-      - ./volumes/nifi-2/database_repository:/opt/nifi/nifi-current/database_repository
-      - ./volumes/nifi-2/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
-      - ./volumes/nifi-2/provenance_repository:/opt/nifi/nifi-current/provenance_repository
-      - ./volumes/nifi-2/state:/opt/nifi/nifi-current/state
-      - ./volumes/nifi-2/logs:/opt/nifi/nifi-current/logs
+      - ./clusters/cluster01/conf/cluster01-nifi-2:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/cluster01/volumes/cluster01-nifi-2/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-2/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-2/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-2/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-2/state:/opt/nifi/nifi-current/state
+      - ./clusters/cluster01/volumes/cluster01-nifi-2/logs:/opt/nifi/nifi-current/logs
     depends_on:
       - zookeeper-1
       - zookeeper-2
@@ -216,13 +216,13 @@ services:
       NIFI_JVM_HEAP_INIT: ${NIFI_JVM_HEAP_INIT:-2g}
       NIFI_JVM_HEAP_MAX: ${NIFI_JVM_HEAP_MAX:-2g}
     volumes:
-      - ./conf/nifi-3:/opt/nifi/nifi-current/conf:rw
-      - ./volumes/nifi-3/content_repository:/opt/nifi/nifi-current/content_repository
-      - ./volumes/nifi-3/database_repository:/opt/nifi/nifi-current/database_repository
-      - ./volumes/nifi-3/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
-      - ./volumes/nifi-3/provenance_repository:/opt/nifi/nifi-current/provenance_repository
-      - ./volumes/nifi-3/state:/opt/nifi/nifi-current/state
-      - ./volumes/nifi-3/logs:/opt/nifi/nifi-current/logs
+      - ./clusters/cluster01/conf/cluster01-nifi-3:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/cluster01/volumes/cluster01-nifi-3/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-3/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-3/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-3/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/cluster01/volumes/cluster01-nifi-3/state:/opt/nifi/nifi-current/state
+      - ./clusters/cluster01/volumes/cluster01-nifi-3/logs:/opt/nifi/nifi-current/logs
     depends_on:
       - zookeeper-1
       - zookeeper-2

@@ -88,7 +88,7 @@ NODE_COUNT="${2:-3}"
 BASE_PORT="${3:-30443}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CA_CERT="${SCRIPT_DIR}/certs/ca/ca-cert.pem"
+CA_CERT="${SCRIPT_DIR}/clusters/${CLUSTER_NAME}/certs/ca/ca-cert.pem"
 USERNAME="${NIFI_USERNAME:-admin}"
 PASSWORD="${NIFI_PASSWORD:-changeme123456}"
 ZK_BASE_PORT=$((BASE_PORT - 262))  # 30443 - 262 = 30181
