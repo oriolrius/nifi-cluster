@@ -109,6 +109,7 @@ nifi-cluster/
 │   └── tasks/                       # Task tracking
 │
 ├── create-cluster.sh                # Cluster creation script
+├── delete-cluster.sh                # Cluster deletion script
 ├── test-cluster.sh                  # Cluster testing script
 ├── validate-cluster.sh              # Configuration validation
 ├── generate-docker-compose.sh       # Compose file generator
@@ -210,6 +211,31 @@ Validates cluster configuration.
 - Configuration files
 - Docker Compose syntax
 - Port conflicts
+
+### delete-cluster.sh
+
+Safely deletes a cluster including containers, networks, and data.
+
+**IMPORTANT**: The shared CA (certs/ca/) is NEVER deleted.
+
+```bash
+./delete-cluster.sh <CLUSTER_NAME> [--force]
+```
+
+**Example**:
+```bash
+./delete-cluster.sh cluster01              # With confirmation prompt
+./delete-cluster.sh cluster02 --force      # Skip confirmation
+```
+
+**Deletes**:
+- Docker containers (stopped and removed)
+- Docker networks
+- Docker Compose file
+- Cluster workspace (certs, configs, volumes)
+
+**Preserves**:
+- Shared CA at certs/ca/ (used by all clusters)
 
 ## Usage Examples
 
