@@ -88,7 +88,7 @@ services:
 
       # Web Properties - HTTPS
       NIFI_WEB_HTTPS_PORT: 8443
-      NIFI_WEB_HTTPS_HOST: 0.0.0.0
+      NIFI_WEB_HTTPS_HOST: nifi-1
       NIFI_WEB_PROXY_HOST: localhost:59443,localhost:59444,localhost:59445,nifi-1:8443,nifi-2:8443,nifi-3:8443
 
       # Security - Single User (for demo/dev)
@@ -143,7 +143,7 @@ services:
 
       # Web Properties - HTTPS
       NIFI_WEB_HTTPS_PORT: 8443
-      NIFI_WEB_HTTPS_HOST: 0.0.0.0
+      NIFI_WEB_HTTPS_HOST: nifi-2
       NIFI_WEB_PROXY_HOST: localhost:59443,localhost:59444,localhost:59445,nifi-1:8443,nifi-2:8443,nifi-3:8443
 
       # Security - Single User (for demo/dev)
@@ -198,7 +198,7 @@ services:
 
       # Web Properties - HTTPS
       NIFI_WEB_HTTPS_PORT: 8443
-      NIFI_WEB_HTTPS_HOST: 0.0.0.0
+      NIFI_WEB_HTTPS_HOST: nifi-3
       NIFI_WEB_PROXY_HOST: localhost:59443,localhost:59444,localhost:59445,nifi-1:8443,nifi-2:8443,nifi-3:8443
 
       # Security - Single User (for demo/dev)
