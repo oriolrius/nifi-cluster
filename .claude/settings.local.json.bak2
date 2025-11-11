@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__nifi__nifi_get_flow",
+      "Bash(curl:*)",
+      "Bash(while read uuid)",
+      "Bash(do curl -s -u admin:'NiFi2025SecurePassword!ChangeMeNow' \"http://localhost:53000/nifi-api/flowfile-queues/2c02256c-019a-1000-03d2-814e0b6e6fa2/flowfiles/$uuid\")",
+      "Bash(done)",
+      "Bash(while IFS=, read -r pos uuid)",
+      "Bash(jq:*)",
+      "Bash(npm run build:*)",
+      "mcp__nifi__nifi_list_queue",
+      "Bash(node dist/index.js:*)",
+      "WebSearch"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "nifi"
+  ]
+}

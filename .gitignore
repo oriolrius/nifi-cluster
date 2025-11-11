@@ -1,0 +1,43 @@
+# Environment variables with sensitive data
+.env
+.env.local
+.env.*.local
+
+# Runtime volumes (contains runtime data)
+volumes/
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# MCP server build artifacts
+mcp-servers/nifi/dist/
+mcp-servers/nifi/node_modules/
+
+# PLC4X build artifacts
+plc4x/build/
+*.nar
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backups
+*.bak
+backup-*.tar.gz
