@@ -12,6 +12,9 @@ NODE_COUNT="${1:-3}"
 OUTPUT_DIR="${2:-$SCRIPT_DIR}"
 CLUSTER_NAME="${3:-default}"
 
+# Shared CA location (always in certs/ca/)
+SHARED_CA_DIR="$SCRIPT_DIR/ca"
+
 # Validate NODE_COUNT
 if ! [[ "$NODE_COUNT" =~ ^[0-9]+$ ]] || [ "$NODE_COUNT" -lt 1 ]; then
     echo "Error: NODE_COUNT must be a positive integer"
@@ -45,44 +48,97 @@ for i in $(seq 1 "$NODE_COUNT"); do
     mkdir -p "${CLUSTER_NAME}-zookeeper-${i}"
 done
 
-# Clean up existing certificates
-echo "Cleaning up old certificates..."
-rm -f ca/*.pem ca/*.key ca/*.srl ca/*.jks ca/*.p12
+# Clean up existing NODE certificates (not CA!)
+echo "Cleaning up old node certificates..."
 rm -f ${CLUSTER_NAME}-nifi-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
 rm -f ${CLUSTER_NAME}-zookeeper-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
 
 echo ""
-echo "Step 1: Creating Root CA"
+echo "Step 1: Using Shared Root CA"
 echo "---------------------------------------"
 
-# Generate Root CA private key
-openssl genrsa -out ca/ca-key.pem $KEY_SIZE
-echo "✓ Generated Root CA private key"
+# Check if shared CA exists
+if [ -f "$SHARED_CA_DIR/ca-cert.pem" ] && [ -f "$SHARED_CA_DIR/ca-key.pem" ]; then
+    echo "✓ Using existing shared CA from $SHARED_CA_DIR"
 
-# Generate Root CA certificate
-openssl req -new -x509 -days $VALIDITY_DAYS \
-    -key ca/ca-key.pem \
-    -out ca/ca-cert.pem \
-    -subj "$CA_SUBJECT"
-echo "✓ Generated Root CA certificate"
+    # Create local ca directory
+    mkdir -p ca
 
-# Convert CA cert to JKS truststore
-keytool -import -noprompt \
-    -alias ca-cert \
-    -file ca/ca-cert.pem \
-    -keystore ca/truststore.jks \
-    -storepass "$TRUSTSTORE_PASS"
-echo "✓ Created JKS truststore"
+    # Copy shared CA to output directory
+    cp "$SHARED_CA_DIR/ca-key.pem" ca/
+    cp "$SHARED_CA_DIR/ca-cert.pem" ca/
+    cp "$SHARED_CA_DIR/truststore.jks" ca/ 2>/dev/null || true
+    cp "$SHARED_CA_DIR/truststore.p12" ca/ 2>/dev/null || true
 
-# Convert JKS truststore to PKCS12
-keytool -importkeystore -noprompt \
-    -srckeystore ca/truststore.jks \
-    -srcstoretype JKS \
-    -srcstorepass "$TRUSTSTORE_PASS" \
-    -destkeystore ca/truststore.p12 \
-    -deststoretype PKCS12 \
-    -deststorepass "$TRUSTSTORE_PASS"
-echo "✓ Created PKCS12 truststore"
+    # If truststores don't exist, create them
+    if [ ! -f "ca/truststore.jks" ]; then
+        keytool -import -noprompt \
+            -alias ca-cert \
+            -file ca/ca-cert.pem \
+            -keystore ca/truststore.jks \
+            -storepass "$TRUSTSTORE_PASS"
+        cp ca/truststore.jks "$SHARED_CA_DIR/"
+    fi
+
+    if [ ! -f "ca/truststore.p12" ]; then
+        keytool -importkeystore -noprompt \
+            -srckeystore ca/truststore.jks \
+            -srcstoretype JKS \
+            -srcstorepass "$TRUSTSTORE_PASS" \
+            -destkeystore ca/truststore.p12 \
+            -deststoretype PKCS12 \
+            -deststorepass "$TRUSTSTORE_PASS"
+        cp ca/truststore.p12 "$SHARED_CA_DIR/"
+    fi
+
+    echo "✓ Shared CA ready for use"
+else
+    echo "✗ Shared CA not found, creating new CA in $SHARED_CA_DIR"
+
+    # Create shared CA directory
+    mkdir -p "$SHARED_CA_DIR"
+    mkdir -p ca
+
+    # Generate Root CA private key
+    openssl genrsa -out "$SHARED_CA_DIR/ca-key.pem" $KEY_SIZE
+    echo "✓ Generated Root CA private key"
+
+    # Generate Root CA certificate
+    openssl req -new -x509 -days $VALIDITY_DAYS \
+        -key "$SHARED_CA_DIR/ca-key.pem" \
+        -out "$SHARED_CA_DIR/ca-cert.pem" \
+        -subj "$CA_SUBJECT"
+    echo "✓ Generated Root CA certificate"
+
+    # Convert CA cert to JKS truststore
+    keytool -import -noprompt \
+        -alias ca-cert \
+        -file "$SHARED_CA_DIR/ca-cert.pem" \
+        -keystore "$SHARED_CA_DIR/truststore.jks" \
+        -storepass "$TRUSTSTORE_PASS"
+    echo "✓ Created JKS truststore"
+
+    # Convert JKS truststore to PKCS12
+    keytool -importkeystore -noprompt \
+        -srckeystore "$SHARED_CA_DIR/truststore.jks" \
+        -srcstoretype JKS \
+        -srcstorepass "$TRUSTSTORE_PASS" \
+        -destkeystore "$SHARED_CA_DIR/truststore.p12" \
+        -deststoretype PKCS12 \
+        -deststorepass "$TRUSTSTORE_PASS"
+    echo "✓ Created PKCS12 truststore"
+
+    # Copy to output directory
+    cp "$SHARED_CA_DIR/ca-key.pem" ca/
+    cp "$SHARED_CA_DIR/ca-cert.pem" ca/
+    cp "$SHARED_CA_DIR/truststore.jks" ca/
+    cp "$SHARED_CA_DIR/truststore.p12" ca/
+
+    # Set secure permissions on CA private key
+    chmod 600 "$SHARED_CA_DIR/ca-key.pem"
+
+    echo "✓ New shared CA created and ready for use"
+fi
 
 echo ""
 echo "Step 2: Generating NiFi Node Certificates"
@@ -268,19 +324,25 @@ echo "Certificate Generation Complete!"
 echo "==============================================="
 echo ""
 echo "Summary:"
-echo "  - Root CA: ca/ca-cert.pem"
+echo "  - Shared Root CA: $SHARED_CA_DIR/ca-cert.pem"
+echo "  - CA copied to: $OUTPUT_DIR/ca/"
 echo "  - Truststore: ca/truststore.jks and ca/truststore.p12 (PKCS12)"
-echo "  - NiFi node keystores: nifi-*/keystore.p12 (PKCS12) and nifi-*/keystore.jks"
-echo "  - NiFi node truststores: nifi-*/truststore.p12 (PKCS12) and nifi-*/truststore.jks"
-echo "  - ZooKeeper node keystores: zookeeper-*/keystore.p12 and zookeeper-*/keystore.jks"
-echo "  - ZooKeeper node truststores: zookeeper-*/truststore.p12 and zookeeper-*/truststore.jks"
+echo "  - NiFi node keystores: ${CLUSTER_NAME}-nifi-*/keystore.p12 (PKCS12) and ${CLUSTER_NAME}-nifi-*/keystore.jks"
+echo "  - NiFi node truststores: ${CLUSTER_NAME}-nifi-*/truststore.p12 (PKCS12) and ${CLUSTER_NAME}-nifi-*/truststore.jks"
+echo "  - ZooKeeper node keystores: ${CLUSTER_NAME}-zookeeper-*/keystore.p12 and ${CLUSTER_NAME}-zookeeper-*/keystore.jks"
+echo "  - ZooKeeper node truststores: ${CLUSTER_NAME}-zookeeper-*/truststore.p12 and ${CLUSTER_NAME}-zookeeper-*/truststore.jks"
 echo ""
 echo "Passwords:"
 echo "  - Keystore password: $KEYSTORE_PASS"
 echo "  - Truststore password: $TRUSTSTORE_PASS"
 echo ""
+echo "Important:"
+echo "  - All clusters share the CA at: $SHARED_CA_DIR/"
+echo "  - Protect CA private key: chmod 600 $SHARED_CA_DIR/ca-key.pem"
+echo "  - Backup CA regularly - it's critical for all clusters"
+echo ""
 echo "Next steps:"
-echo "  1. Update docker-compose.yml to mount certificates"
-echo "  2. Configure NiFi to use SSL with these certificates"
-echo "  3. Restart the cluster"
+echo "  1. Docker compose file will mount these certificates"
+echo "  2. NiFi configuration will use SSL with these certificates"
+echo "  3. Start the cluster with: docker compose -f docker-compose-${CLUSTER_NAME}.yml up -d"
 echo ""

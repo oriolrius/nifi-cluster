@@ -20,11 +20,12 @@ open https://localhost:30443/nifi
 ## Features
 
 - **Multi-Cluster Support**: Run multiple independent clusters on one host
-- **Complete Isolation**: Separate networks, volumes, and docker-compose files per cluster
-- **Shared PKI**: Single Certificate Authority simplifies certificate management
-- **Automated Setup**: One-command cluster creation
+- **Complete Isolation**: Separate networks, volumes, configurations, and docker-compose files per cluster
+- **Shared PKI**: Single Certificate Authority for all clusters simplifies certificate management
+- **Automated Setup**: One-command cluster creation with full validation
 - **Port Management**: Systematic port allocation prevents conflicts
 - **Production Ready**: TLS/SSL enabled, configurable JVM settings
+- **Mandatory Naming**: Strict clusterXX naming convention (cluster01, cluster02, etc.)
 
 ## Architecture
 
@@ -34,6 +35,10 @@ Each cluster has:
 - **Separate ports**: 30xxx for cluster01, 31xxx for cluster02, etc.
 - **Independent volumes**: Isolated data storage
 - **Own ZooKeeper ensemble**: Separate cluster coordination
+- **Isolated workspace**: All resources in `clusters/<CLUSTER_NAME>/`
+
+All clusters share:
+- **Single Certificate Authority**: Simplifies certificate management and enables inter-cluster communication
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -55,44 +60,65 @@ Each cluster has:
 
 ```
 nifi-cluster/
-├── certs/                           # Shared certificates
-│   ├── ca/                          # Certificate Authority
+├── certs/                           # Shared CA for all clusters
+│   ├── ca/                          # Certificate Authority (shared)
 │   │   ├── ca-key.pem               # CA private key (CRITICAL)
 │   │   ├── ca-cert.pem              # CA certificate
 │   │   └── truststore.p12           # CA truststore
-│   ├── nifi-1/                      # Node 1 certificates
-│   ├── nifi-2/                      # Node 2 certificates
-│   └── nifi-3/                      # Node 3 certificates
+│   ├── generate-certs.sh            # Certificate generation script
+│   └── README.md                    # CA documentation
 │
-├── conf/                            # Node configurations
-│   ├── nifi-1/                      # Node 1 config
-│   │   ├── nifi.properties
-│   │   ├── state-management.xml
-│   │   ├── keystore.p12
-│   │   └── truststore.p12
-│   ├── nifi-2/                      # Node 2 config
-│   └── nifi-3/                      # Node 3 config
+├── clusters/                        # All cluster workspaces
+│   ├── cluster01/                   # Cluster01 isolated workspace
+│   │   ├── certs/                   # Cluster01 node certificates
+│   │   │   ├── ca/                  # Copy of shared CA
+│   │   │   ├── cluster01-nifi-1/    # Node 1 certificates
+│   │   │   ├── cluster01-nifi-2/    # Node 2 certificates
+│   │   │   ├── cluster01-nifi-3/    # Node 3 certificates
+│   │   │   ├── cluster01-zookeeper-1/
+│   │   │   ├── cluster01-zookeeper-2/
+│   │   │   └── cluster01-zookeeper-3/
+│   │   ├── conf/                    # Cluster01 configurations
+│   │   │   ├── cluster01-nifi-1/    # Node 1 config
+│   │   │   │   ├── nifi.properties
+│   │   │   │   ├── keystore.p12
+│   │   │   │   └── truststore.p12
+│   │   │   ├── cluster01-nifi-2/    # Node 2 config
+│   │   │   └── cluster01-nifi-3/    # Node 3 config
+│   │   └── volumes/                 # Cluster01 runtime data
+│   │       ├── cluster01-nifi-1/
+│   │       ├── cluster01-nifi-2/
+│   │       ├── cluster01-nifi-3/
+│   │       ├── cluster01-zookeeper-1/
+│   │       ├── cluster01-zookeeper-2/
+│   │       └── cluster01-zookeeper-3/
+│   │
+│   └── cluster02/                   # Cluster02 isolated workspace
+│       └── (same structure as cluster01)
 │
-├── volumes/                         # Runtime data (per cluster)
-│   ├── zookeeper-1/
-│   ├── zookeeper-2/
-│   ├── zookeeper-3/
-│   ├── nifi-1/
-│   ├── nifi-2/
-│   └── nifi-3/
+├── conf/                            # Configuration templates
+│   └── templates/                   # Base config files
+│       ├── authorizers.xml
+│       ├── bootstrap.conf
+│       ├── logback.xml
+│       ├── login-identity-providers.xml
+│       └── zookeeper.properties
 │
 ├── backlog/                         # Project management
 │   ├── docs/                        # Design documents
 │   └── tasks/                       # Task tracking
 │
-├── create-cluster.sh                # Cluster creation
-├── test-cluster.sh                  # Cluster testing
+├── create-cluster.sh                # Cluster creation script
+├── test-cluster.sh                  # Cluster testing script
 ├── validate-cluster.sh              # Configuration validation
 ├── generate-docker-compose.sh       # Compose file generator
 │
 ├── docker-compose-cluster01.yml     # Cluster01 compose file
 ├── docker-compose-cluster02.yml     # Cluster02 compose file
 └── CLAUDE.md                        # Project instructions
+
+Note: All cluster data is in clusters/<CLUSTER_NAME>/ and is .gitignored
+      The shared CA is in certs/ca/ and is copied to each cluster workspace
 ```
 
 ## Port Allocation
@@ -237,15 +263,17 @@ docker compose -f docker-compose-cluster02.yml restart
 
 ### Custom Node Count
 
+**IMPORTANT**: Cluster names MUST follow the pattern "clusterXX" (cluster01, cluster02, cluster03, etc.)
+
 ```bash
 # Single-node cluster
-./create-cluster.sh dev 3 1
+./create-cluster.sh cluster03 3 1
 
 # Two-node cluster
-./create-cluster.sh test 4 2
+./create-cluster.sh cluster04 4 2
 
 # Five-node cluster
-./create-cluster.sh prod 0 5
+./create-cluster.sh cluster05 5 5
 ```
 
 ## Environment Variables
@@ -298,11 +326,11 @@ lsof -i :30443
 ### Certificate Issues
 
 ```bash
-# Verify certificates
+# Verify shared CA certificate
 openssl x509 -in certs/ca/ca-cert.pem -text -noout
 
-# Regenerate if needed
-cd certs && ./generate-certs.sh 3
+# Regenerate cluster certificates (uses existing shared CA)
+./create-cluster.sh cluster01 1 3
 ```
 
 ### Node Not Joining Cluster
@@ -326,13 +354,12 @@ docker compose -f docker-compose-cluster01.yml restart nifi-1
 # Stop cluster
 docker compose -f docker-compose-cluster01.yml down
 
-# Backup data
+# Backup entire cluster (includes node certs, config, volumes)
 tar -czf cluster01-backup-$(date +%Y%m%d).tar.gz \
     docker-compose-cluster01.yml \
-    conf/nifi-* \
-    volumes/
+    clusters/cluster01/
 
-# Backup CA (CRITICAL)
+# Backup shared CA (CRITICAL - backs up CA for ALL clusters)
 tar -czf ca-backup-$(date +%Y%m%d).tar.gz certs/ca/
 ```
 
@@ -354,6 +381,7 @@ docker compose -f docker-compose-cluster01.yml up -d
 4. **Regular updates**: Keep NiFi version current
 5. **Firewall rules**: Restrict access to NiFi ports
 6. **Production auth**: Replace single-user with LDAP/OIDC
+7. **Backup CA regularly**: The shared CA is critical for all clusters
 
 ## Advanced Features
 
@@ -371,7 +399,7 @@ docker network inspect cluster01-nifi-cluster_cluster01-network
 
 ### Inter-Cluster Communication
 
-Clusters share the same CA, enabling future Site-to-Site connections if needed.
+All clusters share the same CA, enabling Site-to-Site connections between clusters without additional certificate configuration.
 
 ### Scaling
 
