@@ -1,5 +1,13 @@
 #!/bin/bash
 # Initialize volume directories for NiFi cluster and ZooKeeper ensemble
+#
+# DEPRECATED: This script is superseded by create-cluster.sh which handles
+# volume initialization automatically as part of cluster creation.
+#
+# Use: ./create-cluster.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
+# Example: ./create-cluster.sh cluster01 1 3
+#
+# This script is kept for backward compatibility but is no longer recommended.
 
 set -e
 

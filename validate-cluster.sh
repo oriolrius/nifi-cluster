@@ -1,13 +1,25 @@
 #!/bin/bash
 # Cluster validation script for NiFi cluster configuration
-# Usage: ./validate-cluster.sh [NODE_COUNT]
+# Usage: ./validate-cluster.sh [OPTIONS] <CLUSTER_NAME> [NODE_COUNT]
+#
+# Arguments:
+#   CLUSTER_NAME    Name of the cluster to validate (e.g., cluster01, cluster02)
+#   NODE_COUNT      Number of nodes in the cluster (default: 3)
+#
+# Options:
+#   --help, -h      Show this help message
+#
+# Examples:
+#   ./validate-cluster.sh cluster01           # Validate cluster01 with 3 nodes
+#   ./validate-cluster.sh cluster01 3         # Validate cluster01 with 3 nodes
+#   ./validate-cluster.sh cluster02 3         # Validate cluster02 with 3 nodes
 #
 # Validates:
 # - Directory structure
 # - Certificate chain
 # - Configuration files
 # - Node addresses in nifi.properties
-# - docker-compose.yml syntax
+# - docker-compose-<CLUSTER_NAME>.yml syntax
 # - Port conflicts
 
 # Color codes for output
@@ -64,22 +76,62 @@ print_header() {
     echo ""
 }
 
-# Detect node count
-if [ -n "$1" ]; then
-    NODE_COUNT="$1"
-else
-    # Try to detect from docker-compose.yml
-    if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
-        NODE_COUNT=$(grep -c "container_name:.*nifi-" "$SCRIPT_DIR/docker-compose.yml" || echo "3")
-    else
-        NODE_COUNT=3
-    fi
+# Show help function
+show_help() {
+    cat << EOF
+NiFi Cluster Configuration Validator
+=====================================
+
+Validates cluster configuration before deployment.
+
+Usage: $0 [OPTIONS] <CLUSTER_NAME> [NODE_COUNT]
+
+Arguments:
+  CLUSTER_NAME    Name of the cluster to validate (e.g., cluster01, cluster02)
+  NODE_COUNT      Number of nodes in the cluster (default: 3)
+
+Options:
+  --help, -h      Show this help message
+
+Examples:
+  $0 cluster01                    # Validate cluster01 with 3 nodes
+  $0 cluster01 3                  # Validate cluster01 with 3 nodes
+  $0 cluster02 3                  # Validate cluster02 with 3 nodes
+
+Validations Performed:
+  1. Directory structure
+  2. Certificate chain
+  3. Configuration files
+  4. Node addresses in nifi.properties
+  5. ZooKeeper configuration
+  6. Docker Compose file syntax
+  7. Port conflicts
+
+EOF
+    exit 0
+}
+
+# Parse command line arguments
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    show_help
 fi
+
+if [ -z "$1" ]; then
+    echo "Error: CLUSTER_NAME is required"
+    echo "Run '$0 --help' for usage information"
+    exit 1
+fi
+
+CLUSTER_NAME="$1"
+NODE_COUNT="${2:-3}"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose-${CLUSTER_NAME}.yml"
 
 print_header "NiFi Cluster Configuration Validator"
 
 echo "Validation Configuration:"
+echo "  Cluster Name:  $CLUSTER_NAME"
 echo "  Node Count:    $NODE_COUNT"
+echo "  Compose File:  docker-compose-${CLUSTER_NAME}.yml"
 echo "  Working Dir:   $SCRIPT_DIR"
 echo ""
 
@@ -248,29 +300,29 @@ done
 # 6. Docker Compose Validation
 print_header "6. Docker Compose Validation"
 
-print_check "YML" "Checking docker-compose.yml exists"
-if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+print_check "YML" "Checking docker-compose-${CLUSTER_NAME}.yml exists"
+if [ -f "$COMPOSE_FILE" ]; then
     print_pass
 else
-    print_fail "docker-compose.yml not found"
+    print_fail "docker-compose-${CLUSTER_NAME}.yml not found"
 fi
 
-print_check "SYN" "Validating docker-compose.yml syntax"
-if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
-    if docker compose -f "$SCRIPT_DIR/docker-compose.yml" config --quiet 2>&1; then
+print_check "SYN" "Validating docker-compose-${CLUSTER_NAME}.yml syntax"
+if [ -f "$COMPOSE_FILE" ]; then
+    if docker compose -f "$COMPOSE_FILE" config --quiet 2>&1; then
         print_pass
     else
-        print_fail "docker-compose.yml has syntax errors"
+        print_fail "docker-compose-${CLUSTER_NAME}.yml has syntax errors"
     fi
 else
-    print_fail "docker-compose.yml not found"
+    print_fail "docker-compose-${CLUSTER_NAME}.yml not found"
 fi
 
 # Check service count
-print_check "SVC" "Checking service count in docker-compose.yml"
-if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
-    ZK_SERVICES=$(grep -c "zookeeper-" "$SCRIPT_DIR/docker-compose.yml" | grep "container_name" || echo "0")
-    NIFI_SERVICES=$(grep -c "container_name:.*nifi-" "$SCRIPT_DIR/docker-compose.yml" || echo "0")
+print_check "SVC" "Checking service count in docker-compose-${CLUSTER_NAME}.yml"
+if [ -f "$COMPOSE_FILE" ]; then
+    ZK_SERVICES=$(grep -c "zookeeper-" "$COMPOSE_FILE" | grep "container_name" || echo "0")
+    NIFI_SERVICES=$(grep -c "container_name:.*nifi-" "$COMPOSE_FILE" || echo "0")
 
     if [ "$NIFI_SERVICES" -eq "$NODE_COUNT" ]; then
         print_pass
@@ -282,9 +334,9 @@ fi
 # 7. Port Conflict Check
 print_header "7. Port Conflict Check"
 
-if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+if [ -f "$COMPOSE_FILE" ]; then
     # Extract all port mappings
-    PORTS=$(grep -E '^\s+- "[0-9]+:[0-9]+"' "$SCRIPT_DIR/docker-compose.yml" | sed 's/.*"\([0-9]*\):.*/\1/' | sort)
+    PORTS=$(grep -E '^\s+- "[0-9]+:[0-9]+"' "$COMPOSE_FILE" | sed 's/.*"\([0-9]*\):.*/\1/' | sort)
 
     print_check "DUP" "Checking for duplicate port mappings"
     DUPLICATES=$(echo "$PORTS" | uniq -d)
@@ -350,9 +402,10 @@ if [ $FAILED -eq 0 ]; then
     echo "Your cluster configuration is valid and ready to deploy."
     echo ""
     echo "Next steps:"
-    echo "  1. Start the cluster: docker compose up -d"
-    echo "  2. Monitor startup: docker compose logs -f"
+    echo "  1. Start the cluster: docker compose -f docker-compose-${CLUSTER_NAME}.yml up -d"
+    echo "  2. Monitor startup: docker compose -f docker-compose-${CLUSTER_NAME}.yml logs -f"
     echo "  3. Wait 2-3 minutes for cluster initialization"
+    echo "  4. Test the cluster: ./test-cluster.sh ${CLUSTER_NAME} ${NODE_COUNT} <BASE_PORT>"
     echo ""
     exit 0
 else
