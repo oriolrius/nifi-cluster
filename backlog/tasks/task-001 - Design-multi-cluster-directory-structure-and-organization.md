@@ -4,7 +4,7 @@ title: Design multi-cluster directory structure and organization
 status: Done
 assignee: []
 created_date: '2025-11-11 14:59'
-updated_date: '2025-11-11 15:20'
+updated_date: '2025-11-11 15:22'
 labels: []
 dependencies: []
 priority: high
@@ -43,8 +43,10 @@ Successfully implemented the multi-cluster directory structure:
    - scripts/ for automation scripts
 
 2. Created comprehensive documentation:
-   - MULTI-CLUSTER.md explaining the entire structure, design principles, workflows, and best practices
+   - Document doc-002 "Multi-Cluster NiFi Directory Structure" created in backlog
+   - Explains entire structure, design principles, workflows, and best practices
    - Includes sections on: architecture, certificate management, port allocation, security, backup strategy, troubleshooting, and migration
+   - Access via: backlog document doc-002
 
 3. Updated .gitignore:
    - Added exclusions for shared/certs/ca/ (CA private keys)
