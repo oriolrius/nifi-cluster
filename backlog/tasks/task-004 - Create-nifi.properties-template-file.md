@@ -1,9 +1,10 @@
 ---
 id: task-004
 title: Create nifi.properties template file
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2025-11-11 14:59'
+updated_date: '2025-11-11 15:39'
 labels:
   - configuration
   - templates
