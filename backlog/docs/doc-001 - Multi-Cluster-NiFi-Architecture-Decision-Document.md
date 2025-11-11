@@ -1,5 +1,5 @@
 ---
-id: doc-004
+id: doc-001
 title: Multi-Cluster NiFi Architecture Decision Document
 type: other
 created_date: '2025-11-11 15:05'
