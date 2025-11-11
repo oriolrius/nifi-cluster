@@ -1,6 +1,6 @@
 ---
 id: task-015
-title: Test cluster creation with cluster01
+title: Test cluster creation with cluster01how
 status: Done
 assignee: []
 created_date: '2025-11-11 14:59'
