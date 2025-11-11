@@ -225,11 +225,11 @@ nifi.sensitive.props.key=changeme_sensitive_key_123
 nifi.sensitive.props.algorithm=NIFI_PBKDF2_AES_GCM_256
 
 # SSL/TLS Configuration
-nifi.security.keystore=/opt/nifi/nifi-current/certs/keystore.p12
+nifi.security.keystore=/opt/nifi/nifi-current/conf/keystore.p12
 nifi.security.keystoreType=PKCS12
 nifi.security.keystorePasswd=changeme123456
 nifi.security.keyPasswd=changeme123456
-nifi.security.truststore=/opt/nifi/nifi-current/certs/truststore.p12
+nifi.security.truststore=/opt/nifi/nifi-current/conf/truststore.p12
 nifi.security.truststoreType=PKCS12
 nifi.security.truststorePasswd=changeme123456
 
