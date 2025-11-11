@@ -1,9 +1,10 @@
 ---
 id: task-007
 title: Create .env template file for cluster configuration
-status: To Do
+status: Done
 assignee: []
 created_date: '2025-11-11 14:59'
+updated_date: '2025-11-11 15:55'
 labels:
   - configuration
   - templates
@@ -29,8 +30,64 @@ Reference: Analysis report section 12.4
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 All required environment variables included
-- [ ] #2 Clear comments explaining each variable
-- [ ] #3 Port calculation formulas documented
-- [ ] #4 Default values provided
+- [x] #1 All required environment variables included
+- [x] #2 Clear comments explaining each variable
+- [x] #3 Port calculation formulas documented
+- [x] #4 Default values provided
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Created comprehensive .env.template in templates/ directory with 37 environment variables organized into 10 sections:
+
+1. CLUSTER IDENTITY (3 vars)
+   - CLUSTER_NAME, CLUSTER_NUM, NODE_COUNT
+
+2. VERSION SETTINGS (2 vars)
+   - NIFI_VERSION, ZOOKEEPER_VERSION
+
+3. PORT ASSIGNMENTS (10 vars)
+   - BASE_PORT (with calculation formula documentation)
+   - ZK_PORT_1/2/3 (ZooKeeper client ports)
+   - HTTPS_PORT_1/2/3 (NiFi web UI ports)
+   - S2S_PORT_1/2/3 (Site-to-Site ports)
+
+4. SERVICE NAMES (6 vars)
+   - ZK_NODE_1/2/3, NIFI_NODE_1/2/3
+
+5. DERIVED VALUES (4 vars)
+   - ZK_CONNECT_STRING, ZK_ROOT_NODE
+   - WEB_PROXY_HOST, NETWORK_NAME
+
+6. PATHS (4 vars)
+   - CLUSTER_BASE_PATH, CONF_BASE_PATH
+   - VOLUME_BASE_PATH, CERTS_BASE_PATH
+
+7. SECURITY SETTINGS (3 vars)
+   - NIFI_SINGLE_USER_USERNAME/PASSWORD
+   - NIFI_SENSITIVE_PROPS_KEY
+
+8. PERFORMANCE TUNING (2 vars)
+   - NIFI_JVM_HEAP_INIT/MAX
+
+9. ZOOKEEPER SETTINGS (4 vars)
+   - ZOO_TICK_TIME, ZOO_INIT_LIMIT
+   - ZOO_SYNC_LIMIT, ZOO_MAX_CLIENT_CNXNS
+
+10. CLUSTER COORDINATION (2 vars)
+    - NIFI_CLUSTER_NODE_PROTOCOL_PORT
+    - NIFI_ELECTION_MAX_WAIT
+
+Documentation Features:
+- Clear section headers with separators
+- Inline comments explaining each variable
+- Port calculation formulas documented
+- Security and performance recommendations
+- Usage instructions at top of file
+- Example values for cluster01 (CLUSTER_NUM=1)
+
+Total: 176 lines, 37 variables, 10 organized sections
+
+Location: templates/.env.template
+<!-- SECTION:NOTES:END -->
