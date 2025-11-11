@@ -187,27 +187,147 @@ See [`conf/README.md`](conf/README.md) for detailed configuration management ins
 | NIFI_JVM_HEAP_INIT | 2g | Initial JVM heap size |
 | NIFI_JVM_HEAP_MAX | 2g | Maximum JVM heap size |
 
-### Port Mapping
+### Port Allocation Strategy
+
+This project uses a systematic port allocation strategy that allows running multiple independent NiFi clusters on the same host without port conflicts.
+
+#### Port Calculation Formula
+
+```
+BASE_PORT = 29000 + (CLUSTER_NUM × 1000)
+```
+
+Each cluster gets a 1000-port range, allowing room for growth and ensuring complete isolation between clusters.
+
+#### Port Offsets
+
+Within each cluster's 1000-port range, ports are assigned with consistent offsets:
+
+| Service | Offset | Formula | Example (Cluster 0) |
+|---------|--------|---------|---------------------|
+| **HTTPS (NiFi UI)** | +443 to +443+N-1 | `BASE_PORT + 443 + (node - 1)` | 29443, 29444, 29445 |
+| **ZooKeeper Client** | +181 to +181+N-1 | `BASE_PORT + 181 + (node - 1)` | 29181, 29182, 29183 |
+| **Site-to-Site** | +100 to +100+N-1 | `BASE_PORT + 100 + (node - 1)` | 29100, 29101, 29102 |
+| **Cluster Protocol** | +82 | `BASE_PORT + 82` (all nodes) | 29082 |
+| **Load Balance** | +342 | `BASE_PORT + 342` (all nodes) | 29342 |
+
+*N = Number of nodes in the cluster*
+
+#### Port Ranges by Cluster Number
+
+Reference table for the first 10 clusters:
+
+| Cluster # | Base Port | HTTPS Range | ZooKeeper Range | S2S Range | Cluster Proto | Load Balance |
+|-----------|-----------|-------------|-----------------|-----------|---------------|--------------|
+| **0** | 29000 | 29443-29445 | 29181-29183 | 29100-29102 | 29082 | 29342 |
+| **1** | 30000 | 30443-30445 | 30181-30183 | 30100-30102 | 30082 | 30342 |
+| **2** | 31000 | 31443-31445 | 31181-31183 | 31100-31102 | 31082 | 31342 |
+| **3** | 32000 | 32443-32445 | 32181-32183 | 32100-32102 | 32082 | 32342 |
+| **4** | 33000 | 33443-33445 | 33181-33183 | 33100-33102 | 33082 | 33342 |
+| **5** | 34000 | 34443-34445 | 34181-34183 | 34100-34102 | 34082 | 34342 |
+| **6** | 35000 | 35443-35445 | 35181-35183 | 35100-35102 | 35082 | 35342 |
+| **7** | 36000 | 36443-36445 | 36181-36183 | 36100-36102 | 36082 | 36342 |
+| **8** | 37000 | 37443-37445 | 37181-37183 | 37100-37102 | 37082 | 37342 |
+| **9** | 38000 | 38443-38445 | 38181-38183 | 38100-38102 | 38082 | 38342 |
+
+*Table shows port ranges for 3-node clusters. Adjust upper range based on your NODE_COUNT.*
+
+#### Current Cluster Port Mapping (Cluster 0)
 
 **NiFi HTTPS UI:**
-- Node 1: 59443
-- Node 2: 59444
-- Node 3: 59445
-
-**NiFi HTTP UI (optional):**
-- Node 1: 59080
-- Node 2: 59081
-- Node 3: 59082
+- Node 1: 29443 → https://localhost:29443/nifi
+- Node 2: 29444 → https://localhost:29444/nifi
+- Node 3: 29445 → https://localhost:29445/nifi
 
 **ZooKeeper Client:**
-- Node 1: 59181
-- Node 2: 59182
-- Node 3: 59183
+- Node 1: 29181
+- Node 2: 29182
+- Node 3: 29183
 
 **NiFi Site-to-Site:**
-- Node 1: 59100
-- Node 2: 59101
-- Node 3: 59102
+- Node 1: 29100
+- Node 2: 29101
+- Node 3: 29102
+
+**Internal Ports (same for all nodes):**
+- Cluster Protocol: 29082
+- Load Balance: 29342
+
+#### Examples
+
+**Example 1: Production Cluster (Cluster 0, 3 nodes)**
+```bash
+./create-cluster.sh production 0 3
+```
+- HTTPS: 29443, 29444, 29445
+- ZooKeeper: 29181, 29182, 29183
+- Site-to-Site: 29100, 29101, 29102
+
+**Example 2: Staging Cluster (Cluster 1, 3 nodes)**
+```bash
+./create-cluster.sh staging 1 3
+```
+- HTTPS: 30443, 30444, 30445
+- ZooKeeper: 30181, 30182, 30183
+- Site-to-Site: 30100, 30101, 30102
+
+**Example 3: Development Cluster (Cluster 2, 2 nodes)**
+```bash
+./create-cluster.sh dev 2 2
+```
+- HTTPS: 31443, 31444
+- ZooKeeper: 31181, 31182
+- Site-to-Site: 31100, 31101
+
+#### Avoiding Port Conflicts
+
+**1. Between Clusters**
+- Use different CLUSTER_NUM values (0, 1, 2, etc.)
+- Each cluster gets a 1000-port range
+- Maximum recommended: 10 clusters per host
+
+**2. With System Services**
+- Ports below 29000 are avoided to prevent conflicts with common services
+- Standard ports (80, 443, 8080, etc.) are not used
+- Range 29000-38999 is dedicated to NiFi clusters
+
+**3. Validation**
+- Use `./validate-cluster.sh` to check for port conflicts before deployment
+- The script checks for duplicate port mappings and port availability
+- Run validation after generating configuration:
+  ```bash
+  ./create-cluster.sh production 0 3
+  ./validate-cluster.sh 3
+  ```
+
+**4. Dynamic Port Check**
+Check if a port is in use before deployment:
+```bash
+# Linux
+lsof -i :29443
+ss -tlnH | grep :29443
+
+# Or during validation
+./validate-cluster.sh 3
+```
+
+#### Edge Cases
+
+**Large Clusters (>10 nodes)**
+- Each cluster reserves 1000 ports, supporting up to ~500 nodes theoretically
+- Practical limit: ~20 nodes per cluster (limited by node count × ports per node)
+- For larger deployments, use separate hosts or Kubernetes
+
+**Port Exhaustion**
+- With 10 clusters × 1000 ports = 10,000 ports used
+- Additional clusters should use CLUSTER_NUM 10+ or separate hosts
+- Monitor with: `./validate-cluster.sh [NODE_COUNT]`
+
+**Conflicts with Existing Services**
+- If port range 29000-38999 conflicts with existing services
+- Option 1: Change CLUSTER_NUM to use different range (e.g., 10-19 → ports 39000-48999)
+- Option 2: Modify port calculation formula in scripts
+- Option 3: Use host networking or different deployment approach
 
 ## Cluster Coordination
 
