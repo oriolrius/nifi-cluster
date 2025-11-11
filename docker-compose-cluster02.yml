@@ -1,0 +1,240 @@
+name: cluster02-nifi-cluster
+
+services:
+  # ZooKeeper Node 1
+  zookeeper-1:
+    image: zookeeper:${ZOOKEEPER_VERSION:-3.9}
+    container_name: cluster02-zookeeper-1
+    hostname: zookeeper-1
+    networks:
+      - cluster02-network
+    ports:
+      - "31181:2181"
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: "*"
+      ZOO_TICK_TIME: 2000
+      ZOO_INIT_LIMIT: 10
+      ZOO_SYNC_LIMIT: 5
+      ZOO_MAX_CLIENT_CNXNS: 60
+    volumes:
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-1/data:/data
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-1/datalog:/datalog
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-1/logs:/logs
+    restart: unless-stopped
+
+  # ZooKeeper Node 2
+  zookeeper-2:
+    image: zookeeper:${ZOOKEEPER_VERSION:-3.9}
+    container_name: cluster02-zookeeper-2
+    hostname: zookeeper-2
+    networks:
+      - cluster02-network
+    ports:
+      - "31182:2181"
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: "*"
+      ZOO_TICK_TIME: 2000
+      ZOO_INIT_LIMIT: 10
+      ZOO_SYNC_LIMIT: 5
+      ZOO_MAX_CLIENT_CNXNS: 60
+    volumes:
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-2/data:/data
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-2/datalog:/datalog
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-2/logs:/logs
+    restart: unless-stopped
+
+  # ZooKeeper Node 3
+  zookeeper-3:
+    image: zookeeper:${ZOOKEEPER_VERSION:-3.9}
+    container_name: cluster02-zookeeper-3
+    hostname: zookeeper-3
+    networks:
+      - cluster02-network
+    ports:
+      - "31183:2181"
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: "*"
+      ZOO_TICK_TIME: 2000
+      ZOO_INIT_LIMIT: 10
+      ZOO_SYNC_LIMIT: 5
+      ZOO_MAX_CLIENT_CNXNS: 60
+    volumes:
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-3/data:/data
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-3/datalog:/datalog
+      - ./clusters/cluster02/volumes/cluster02-zookeeper-3/logs:/logs
+    restart: unless-stopped
+
+  # NiFi Cluster Node 1
+  nifi-1:
+    image: apache/nifi:${NIFI_VERSION:-latest}
+    container_name: cluster02-nifi-1
+    hostname: nifi-1
+    networks:
+      - cluster02-network
+    ports:
+      - "31443:8443"   # HTTPS UI
+      - "31100:10000" # Site-to-Site
+    environment:
+      # Cluster Configuration
+      NIFI_CLUSTER_IS_NODE: "true"
+      NIFI_CLUSTER_NODE_PROTOCOL_PORT: 8082
+      NIFI_CLUSTER_NODE_ADDRESS: nifi-1
+      NIFI_ZK_CONNECT_STRING: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+      NIFI_ELECTION_MAX_WAIT: 1 min
+
+      # Web Properties - HTTPS
+      NIFI_WEB_HTTPS_PORT: 8443
+      NIFI_WEB_HTTPS_HOST: nifi-1
+      NIFI_WEB_PROXY_HOST: localhost:31443,localhost:31444,localhost:31445,nifi-1:8443,nifi-2:8443,nifi-3:8443
+
+      # Security - Single User (for demo/dev)
+      SINGLE_USER_CREDENTIALS_USERNAME: ${NIFI_SINGLE_USER_USERNAME:-admin}
+      SINGLE_USER_CREDENTIALS_PASSWORD: ${NIFI_SINGLE_USER_PASSWORD:-changeme123456}
+
+      # SSL/TLS Configuration - Managed by nifi.properties file (no env vars override)
+
+      # State Management
+      NIFI_STATE_MANAGEMENT_EMBEDDED_ZOOKEEPER_START: "false"
+
+      # Performance Tuning
+      NIFI_JVM_HEAP_INIT: ${NIFI_JVM_HEAP_INIT:-2g}
+      NIFI_JVM_HEAP_MAX: ${NIFI_JVM_HEAP_MAX:-2g}
+    volumes:
+      - ./clusters/cluster02/conf/cluster02-nifi-1:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/cluster02/volumes/cluster02-nifi-1/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-1/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-1/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-1/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-1/state:/opt/nifi/nifi-current/state
+      - ./clusters/cluster02/volumes/cluster02-nifi-1/logs:/opt/nifi/nifi-current/logs
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k https://localhost:8443/nifi || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # NiFi Cluster Node 2
+  nifi-2:
+    image: apache/nifi:${NIFI_VERSION:-latest}
+    container_name: cluster02-nifi-2
+    hostname: nifi-2
+    networks:
+      - cluster02-network
+    ports:
+      - "31444:8443"   # HTTPS UI
+      - "31101:10000" # Site-to-Site
+    environment:
+      # Cluster Configuration
+      NIFI_CLUSTER_IS_NODE: "true"
+      NIFI_CLUSTER_NODE_PROTOCOL_PORT: 8082
+      NIFI_CLUSTER_NODE_ADDRESS: nifi-2
+      NIFI_ZK_CONNECT_STRING: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+      NIFI_ELECTION_MAX_WAIT: 1 min
+
+      # Web Properties - HTTPS
+      NIFI_WEB_HTTPS_PORT: 8443
+      NIFI_WEB_HTTPS_HOST: nifi-2
+      NIFI_WEB_PROXY_HOST: localhost:31443,localhost:31444,localhost:31445,nifi-1:8443,nifi-2:8443,nifi-3:8443
+
+      # Security - Single User (for demo/dev)
+      SINGLE_USER_CREDENTIALS_USERNAME: ${NIFI_SINGLE_USER_USERNAME:-admin}
+      SINGLE_USER_CREDENTIALS_PASSWORD: ${NIFI_SINGLE_USER_PASSWORD:-changeme123456}
+
+      # SSL/TLS Configuration - Managed by nifi.properties file (no env vars override)
+
+      # State Management
+      NIFI_STATE_MANAGEMENT_EMBEDDED_ZOOKEEPER_START: "false"
+
+      # Performance Tuning
+      NIFI_JVM_HEAP_INIT: ${NIFI_JVM_HEAP_INIT:-2g}
+      NIFI_JVM_HEAP_MAX: ${NIFI_JVM_HEAP_MAX:-2g}
+    volumes:
+      - ./clusters/cluster02/conf/cluster02-nifi-2:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/cluster02/volumes/cluster02-nifi-2/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-2/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-2/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-2/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-2/state:/opt/nifi/nifi-current/state
+      - ./clusters/cluster02/volumes/cluster02-nifi-2/logs:/opt/nifi/nifi-current/logs
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k https://localhost:8443/nifi || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # NiFi Cluster Node 3
+  nifi-3:
+    image: apache/nifi:${NIFI_VERSION:-latest}
+    container_name: cluster02-nifi-3
+    hostname: nifi-3
+    networks:
+      - cluster02-network
+    ports:
+      - "31445:8443"   # HTTPS UI
+      - "31102:10000" # Site-to-Site
+    environment:
+      # Cluster Configuration
+      NIFI_CLUSTER_IS_NODE: "true"
+      NIFI_CLUSTER_NODE_PROTOCOL_PORT: 8082
+      NIFI_CLUSTER_NODE_ADDRESS: nifi-3
+      NIFI_ZK_CONNECT_STRING: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+      NIFI_ELECTION_MAX_WAIT: 1 min
+
+      # Web Properties - HTTPS
+      NIFI_WEB_HTTPS_PORT: 8443
+      NIFI_WEB_HTTPS_HOST: nifi-3
+      NIFI_WEB_PROXY_HOST: localhost:31443,localhost:31444,localhost:31445,nifi-1:8443,nifi-2:8443,nifi-3:8443
+
+      # Security - Single User (for demo/dev)
+      SINGLE_USER_CREDENTIALS_USERNAME: ${NIFI_SINGLE_USER_USERNAME:-admin}
+      SINGLE_USER_CREDENTIALS_PASSWORD: ${NIFI_SINGLE_USER_PASSWORD:-changeme123456}
+
+      # SSL/TLS Configuration - Managed by nifi.properties file (no env vars override)
+
+      # State Management
+      NIFI_STATE_MANAGEMENT_EMBEDDED_ZOOKEEPER_START: "false"
+
+      # Performance Tuning
+      NIFI_JVM_HEAP_INIT: ${NIFI_JVM_HEAP_INIT:-2g}
+      NIFI_JVM_HEAP_MAX: ${NIFI_JVM_HEAP_MAX:-2g}
+    volumes:
+      - ./clusters/cluster02/conf/cluster02-nifi-3:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/cluster02/volumes/cluster02-nifi-3/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-3/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-3/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-3/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/cluster02/volumes/cluster02-nifi-3/state:/opt/nifi/nifi-current/state
+      - ./clusters/cluster02/volumes/cluster02-nifi-3/logs:/opt/nifi/nifi-current/logs
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k https://localhost:8443/nifi || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  cluster02-network:
+    driver: bridge
