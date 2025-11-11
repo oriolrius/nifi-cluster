@@ -1,9 +1,10 @@
 ---
 id: task-012
 title: Implement cluster validation script (validate-cluster.sh)
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2025-11-11 14:59'
+updated_date: '2025-11-11 16:29'
 labels:
   - validation
   - testing
