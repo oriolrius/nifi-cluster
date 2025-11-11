@@ -1,0 +1,417 @@
+# Multi-Cluster Apache NiFi Platform
+
+Production-ready multi-cluster Apache NiFi deployment with complete isolation, automated configuration, and shared PKI infrastructure.
+
+## Quick Start
+
+```bash
+# Create first cluster (cluster01, 3 nodes, on ports 30xxx)
+./create-cluster.sh cluster01 1 3
+
+# Start cluster01
+docker compose -f docker-compose-cluster01.yml up -d
+
+# Access cluster01
+open https://localhost:30443/nifi
+```
+
+**Default Credentials**: `admin` / `changeme123456`
+
+## Features
+
+- **Multi-Cluster Support**: Run multiple independent clusters on one host
+- **Complete Isolation**: Separate networks, volumes, and docker-compose files per cluster
+- **Shared PKI**: Single Certificate Authority simplifies certificate management
+- **Automated Setup**: One-command cluster creation
+- **Port Management**: Systematic port allocation prevents conflicts
+- **Production Ready**: TLS/SSL enabled, configurable JVM settings
+
+## Architecture
+
+Each cluster has:
+- **Dedicated Docker network**: Complete network isolation
+- **Dedicated docker-compose file**: `docker-compose-<CLUSTER_NAME>.yml`
+- **Separate ports**: 30xxx for cluster01, 31xxx for cluster02, etc.
+- **Independent volumes**: Isolated data storage
+- **Own ZooKeeper ensemble**: Separate cluster coordination
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  Host Infrastructure                 │
+│                                                      │
+│  ┌────────────────┐        ┌────────────────┐      │
+│  │  cluster01     │        │  cluster02     │      │
+│  │  Ports: 30xxx  │        │  Ports: 31xxx  │      │
+│  │  Network: own  │        │  Network: own  │      │
+│  │  3 NiFi nodes  │        │  3 NiFi nodes  │      │
+│  │  3 ZK nodes    │        │  3 ZK nodes    │      │
+│  └────────────────┘        └────────────────┘      │
+│                                                      │
+│          Shared: Certificate Authority (CA)         │
+└─────────────────────────────────────────────────────┘
+```
+
+## Directory Structure
+
+```
+nifi-cluster/
+├── certs/                           # Shared certificates
+│   ├── ca/                          # Certificate Authority
+│   │   ├── ca-key.pem               # CA private key (CRITICAL)
+│   │   ├── ca-cert.pem              # CA certificate
+│   │   └── truststore.p12           # CA truststore
+│   ├── nifi-1/                      # Node 1 certificates
+│   ├── nifi-2/                      # Node 2 certificates
+│   └── nifi-3/                      # Node 3 certificates
+│
+├── conf/                            # Node configurations
+│   ├── nifi-1/                      # Node 1 config
+│   │   ├── nifi.properties
+│   │   ├── state-management.xml
+│   │   ├── keystore.p12
+│   │   └── truststore.p12
+│   ├── nifi-2/                      # Node 2 config
+│   └── nifi-3/                      # Node 3 config
+│
+├── volumes/                         # Runtime data (per cluster)
+│   ├── zookeeper-1/
+│   ├── zookeeper-2/
+│   ├── zookeeper-3/
+│   ├── nifi-1/
+│   ├── nifi-2/
+│   └── nifi-3/
+│
+├── backlog/                         # Project management
+│   ├── docs/                        # Design documents
+│   └── tasks/                       # Task tracking
+│
+├── create-cluster.sh                # Cluster creation
+├── test-cluster.sh                  # Cluster testing
+├── validate-cluster.sh              # Configuration validation
+├── generate-docker-compose.sh       # Compose file generator
+│
+├── docker-compose-cluster01.yml     # Cluster01 compose file
+├── docker-compose-cluster02.yml     # Cluster02 compose file
+└── CLAUDE.md                        # Project instructions
+```
+
+## Port Allocation
+
+### Formula
+
+```
+BASE_PORT = 29000 + (CLUSTER_NUM × 1000)
+```
+
+### Port Offsets
+
+| Service | Offset | Example (Cluster #1) |
+|---------|--------|---------------------|
+| HTTPS (NiFi UI) | +443 to +443+N-1 | 30443, 30444, 30445 |
+| ZooKeeper | +181 to +181+N-1 | 30181, 30182, 30183 |
+| Site-to-Site | +100 to +100+N-1 | 30100, 30101, 30102 |
+
+### Examples
+
+| Cluster Name | Cluster # | HTTPS Ports | ZooKeeper Ports |
+|--------------|-----------|-------------|-----------------|
+| cluster01 | 1 | 30443-30445 | 30181-30183 |
+| cluster02 | 2 | 31443-31445 | 31181-31183 |
+| cluster03 | 3 | 32443-32445 | 32181-32183 |
+
+## Scripts
+
+### create-cluster.sh
+
+Creates a complete cluster configuration.
+
+```bash
+./create-cluster.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
+```
+
+**Example**:
+```bash
+./create-cluster.sh cluster01 1 3
+```
+
+**What it does**:
+1. Validates prerequisites
+2. Creates volume directories
+3. Generates SSL/TLS certificates
+4. Generates NiFi configuration files
+5. Creates `docker-compose-<CLUSTER_NAME>.yml`
+
+### test-cluster.sh
+
+Runs comprehensive cluster tests.
+
+```bash
+./test-cluster.sh <CLUSTER_NAME> <NODE_COUNT> <BASE_PORT>
+```
+
+**Example**:
+```bash
+./test-cluster.sh cluster01 3 30443
+```
+
+**Tests**:
+- Prerequisites check
+- Container status
+- Web UI access
+- Authentication (JWT tokens)
+- Backend API
+- Cluster status
+- ZooKeeper health
+- SSL/TLS certificates
+- Flow replication
+
+### validate-cluster.sh
+
+Validates cluster configuration.
+
+```bash
+./validate-cluster.sh <CLUSTER_NAME> [NODE_COUNT]
+```
+
+**Example**:
+```bash
+./validate-cluster.sh cluster01 3
+```
+
+**Validates**:
+- Directory structure
+- Certificates
+- Configuration files
+- Docker Compose syntax
+- Port conflicts
+
+## Usage Examples
+
+### Single Cluster
+
+```bash
+# 1. Create cluster
+./create-cluster.sh cluster01 1 3
+
+# 2. Validate
+./validate-cluster.sh cluster01 3
+
+# 3. Start
+docker compose -f docker-compose-cluster01.yml up -d
+
+# 4. Test
+./test-cluster.sh cluster01 3 30443
+
+# 5. Access
+open https://localhost:30443/nifi
+
+# 6. View logs
+docker compose -f docker-compose-cluster01.yml logs -f
+
+# 7. Stop
+docker compose -f docker-compose-cluster01.yml down
+```
+
+### Multiple Clusters
+
+```bash
+# Create cluster01
+./create-cluster.sh cluster01 1 3
+docker compose -f docker-compose-cluster01.yml up -d
+
+# Create cluster02
+./create-cluster.sh cluster02 2 3
+docker compose -f docker-compose-cluster02.yml up -d
+
+# Both running simultaneously
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+# Test both clusters
+./test-cluster.sh cluster01 3 30443
+./test-cluster.sh cluster02 3 31443
+
+# Manage independently
+docker compose -f docker-compose-cluster01.yml restart
+docker compose -f docker-compose-cluster02.yml restart
+```
+
+### Custom Node Count
+
+```bash
+# Single-node cluster
+./create-cluster.sh dev 3 1
+
+# Two-node cluster
+./create-cluster.sh test 4 2
+
+# Five-node cluster
+./create-cluster.sh prod 0 5
+```
+
+## Environment Variables
+
+Each cluster creation generates a `.env` file (optional, uses defaults):
+
+```bash
+NIFI_VERSION=latest
+ZOOKEEPER_VERSION=3.9
+NIFI_SINGLE_USER_USERNAME=admin
+NIFI_SINGLE_USER_PASSWORD=changeme123456
+NIFI_JVM_HEAP_INIT=2g
+NIFI_JVM_HEAP_MAX=2g
+```
+
+**Customize before starting**:
+```bash
+vi .env
+docker compose -f docker-compose-cluster01.yml up -d
+```
+
+## Troubleshooting
+
+### Cluster Won't Start
+
+```bash
+# Check service status
+docker compose -f docker-compose-cluster01.yml ps
+
+# View logs
+docker compose -f docker-compose-cluster01.yml logs -f nifi-1
+
+# Check ZooKeeper
+docker compose -f docker-compose-cluster01.yml logs zookeeper-1
+```
+
+### Port Conflicts
+
+```bash
+# Check what's using the port
+lsof -i :30443
+
+# Validate configuration
+./validate-cluster.sh cluster01 3
+
+# Use different cluster number
+./create-cluster.sh cluster01 2 3  # Uses ports 31xxx
+```
+
+### Certificate Issues
+
+```bash
+# Verify certificates
+openssl x509 -in certs/ca/ca-cert.pem -text -noout
+
+# Regenerate if needed
+cd certs && ./generate-certs.sh 3
+```
+
+### Node Not Joining Cluster
+
+```bash
+# Check cluster logs
+docker compose -f docker-compose-cluster01.yml logs -f nifi-1 | grep -i cluster
+
+# Verify ZooKeeper connectivity
+docker compose -f docker-compose-cluster01.yml exec nifi-1 nc -zv zookeeper-1 2181
+
+# Restart node
+docker compose -f docker-compose-cluster01.yml restart nifi-1
+```
+
+## Backup and Recovery
+
+### Backup
+
+```bash
+# Stop cluster
+docker compose -f docker-compose-cluster01.yml down
+
+# Backup data
+tar -czf cluster01-backup-$(date +%Y%m%d).tar.gz \
+    docker-compose-cluster01.yml \
+    conf/nifi-* \
+    volumes/
+
+# Backup CA (CRITICAL)
+tar -czf ca-backup-$(date +%Y%m%d).tar.gz certs/ca/
+```
+
+### Restore
+
+```bash
+# Restore files
+tar -xzf cluster01-backup-YYYYMMDD.tar.gz
+
+# Start cluster
+docker compose -f docker-compose-cluster01.yml up -d
+```
+
+## Security Best Practices
+
+1. **Change default passwords** in `.env`
+2. **Protect CA private key**: `chmod 600 certs/ca/ca-key.pem`
+3. **Use strong passwords** (min 12 characters)
+4. **Regular updates**: Keep NiFi version current
+5. **Firewall rules**: Restrict access to NiFi ports
+6. **Production auth**: Replace single-user with LDAP/OIDC
+
+## Advanced Features
+
+### Network Isolation
+
+Each cluster has its own Docker network:
+
+```bash
+# View cluster networks
+docker network ls | grep cluster
+
+# Inspect cluster01 network
+docker network inspect cluster01-nifi-cluster_cluster01-network
+```
+
+### Inter-Cluster Communication
+
+Clusters share the same CA, enabling future Site-to-Site connections if needed.
+
+### Scaling
+
+```bash
+# Recreate with more nodes
+./create-cluster.sh cluster01 1 5  # Now 5 nodes
+docker compose -f docker-compose-cluster01.yml down
+docker compose -f docker-compose-cluster01.yml up -d
+```
+
+## Resources
+
+- [Apache NiFi Documentation](https://nifi.apache.org/docs.html)
+- [NiFi Clustering Guide](https://nifi.apache.org/docs/nifi-docs/html/administration-guide.html#clustering)
+- [ZooKeeper Documentation](https://zookeeper.apache.org/doc/current/)
+- [Docker Compose Reference](https://docs.docker.com/compose/)
+
+## Quick Reference
+
+```bash
+# Create cluster
+./create-cluster.sh cluster01 1 3
+
+# Validate
+./validate-cluster.sh cluster01 3
+
+# Start
+docker compose -f docker-compose-cluster01.yml up -d
+
+# Test
+./test-cluster.sh cluster01 3 30443
+
+# Logs
+docker compose -f docker-compose-cluster01.yml logs -f
+
+# Stop
+docker compose -f docker-compose-cluster01.yml down
+
+# Access
+open https://localhost:30443/nifi
+```
+
+**Credentials**: `admin` / `changeme123456`
