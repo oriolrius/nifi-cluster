@@ -44,3 +44,13 @@ Thumbs.db
 # Backups
 *.bak
 backup-*.tar.gz
+
+# Multi-cluster structure
+# Shared CA (contains private keys and certificates)
+shared/certs/ca/
+
+# Generated cluster instances (contains certificates, configs, volumes)
+clusters/*/
+
+# Keep placeholder to preserve directory structure
+!clusters/.placeholder

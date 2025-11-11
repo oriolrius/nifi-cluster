@@ -296,28 +296,319 @@ backlog task diff 42
 
 ## Documentation & Decisions
 
+### When to Use Docs vs Decisions
+
+**Use `backlog doc` for:**
+- General project documentation
+- Architecture overviews
+- Technical specifications
+- Design documents
+- User guides
+- Reference documentation
+
+**Use `backlog decision` for:**
+- Architectural decisions (ADRs)
+- Technology choices
+- Design pattern selections
+- Infrastructure decisions
+- Breaking changes that need justification
+
+**Golden Rule for AI Assistants**: When you need to create markdown documentation (like architecture docs, decision records, specifications), ALWAYS use `backlog doc create` or `backlog decision create`. NEVER create standalone .md files in the project root.
+
 ### Documents
+
+Documents are stored in `backlog/docs/` with the naming pattern `doc-XXX - Title.md`.
+
+#### Creating Documents
+
 ```bash
-# Create document
+# Basic document (opens editor for content)
 backlog doc create "API Documentation"
 
-# List documents
-backlog doc list --plain
+# With type
+backlog doc create "Architecture Overview" -t architecture
 
-# Edit document
-backlog doc edit 1 --content "Updated content"
+# From file
+backlog doc create "README" -p /path/to/readme.md
+
+# Via MCP tools (for AI assistants - preferred method)
+# Use mcp__backlog__document_create tool with title and content
 ```
 
-### Architectural Decisions
+#### Viewing & Listing Documents
+
 ```bash
-# Create decision record
+# List all documents
+backlog doc list --plain
+
+# View specific document
+backlog doc view doc-001
+
+# Search documents
+backlog search "architecture" --type doc --plain
+```
+
+#### Document Structure
+
+Documents have YAML frontmatter:
+```yaml
+---
+id: doc-001
+title: API Documentation
+type: other
+created_date: '2025-11-11 15:22'
+---
+```
+
+Document types:
+- `architecture` - System architecture docs
+- `specification` - Technical specifications
+- `guide` - User or developer guides
+- `reference` - Reference documentation
+- `other` - General documentation
+
+### Architectural Decisions
+
+Decisions are stored in `backlog/decisions/` with the naming pattern `decision-XXX - Title.md`.
+
+#### Creating Decisions
+
+```bash
+# Create decision (opens editor)
 backlog decision create "Use PostgreSQL for data storage"
 
-# List decisions
+# With status
+backlog decision create "Migrate to microservices" --status "proposed"
+
+# Decision statuses:
+# - proposed: Decision proposed, under discussion
+# - accepted: Decision accepted and implemented
+# - rejected: Decision rejected
+# - deprecated: Decision no longer valid
+# - superseded: Replaced by newer decision
+```
+
+#### Decision Document Template
+
+When you create a decision, it uses this template:
+
+```markdown
+---
+id: decision-XXX
+title: Your Decision Title
+date: 'YYYY-MM-DD HH:MM'
+status: proposed
+---
+## Context
+
+What is the issue or situation we're addressing?
+- What forces are at play?
+- What constraints exist?
+- What are we trying to achieve?
+
+## Decision
+
+What decision have we made?
+- What approach are we taking?
+- Why this approach over alternatives?
+
+## Consequences
+
+What are the implications of this decision?
+- Positive outcomes
+- Negative trade-offs
+- What becomes easier/harder?
+- Future implications
+```
+
+#### Viewing & Listing Decisions
+
+```bash
+# List all decisions
 backlog decision list --plain
 
-# View decision
-backlog decision 1 --plain
+# View specific decision (if supported)
+backlog decision view decision-001
+
+# Search decisions
+backlog search "database" --type decision --plain
+```
+
+#### Writing Good Decisions
+
+**Title**: Clear, concise statement of decision
+```bash
+# ✅ Good
+backlog decision create "Use PostgreSQL for primary database"
+backlog decision create "Implement OAuth2 for authentication"
+backlog decision create "Adopt microservices architecture"
+
+# ❌ Bad
+backlog decision create "Database"
+backlog decision create "We should probably use OAuth"
+```
+
+**Context**: Explain the problem and constraints
+```markdown
+## Context
+
+Our current SQLite database cannot handle the increased load from
+1000+ concurrent users. We need a production-grade database that:
+- Supports high concurrency
+- Provides ACID guarantees
+- Offers good tooling and community support
+- Fits within our budget constraints
+
+We evaluated PostgreSQL, MySQL, and MongoDB.
+```
+
+**Decision**: State the decision clearly with rationale
+```markdown
+## Decision
+
+We will use PostgreSQL as our primary database.
+
+Rationale:
+- Excellent ACID compliance and data integrity
+- Superior support for complex queries and JSON data
+- Strong community and ecosystem
+- Our team has PostgreSQL experience
+- Free and open source (cost-effective)
+- Better performance for our read-heavy workload than MySQL
+- More mature than MongoDB for transactional data
+```
+
+**Consequences**: Document trade-offs honestly
+```markdown
+## Consequences
+
+Positive:
+- Robust data integrity and ACID compliance
+- Better scalability for our use case
+- Rich feature set (JSON, full-text search, etc.)
+- Excellent monitoring and debugging tools
+
+Negative:
+- More complex to set up than SQLite
+- Requires separate database server (infrastructure cost)
+- Learning curve for team members unfamiliar with PostgreSQL
+- Migration effort from existing SQLite database
+
+Trade-offs:
+- Operational complexity increases, but data reliability improves
+- Higher infrastructure cost, but better performance at scale
+```
+
+### Decision Workflow
+
+#### 1. Proposing a Decision
+```bash
+# Create decision as "proposed"
+backlog decision create "Adopt GraphQL API" --status "proposed"
+
+# Document the decision
+# - Add context about the problem
+# - Explain the proposed solution
+# - List alternatives considered
+# - Document trade-offs
+```
+
+#### 2. Discussion
+```bash
+# Team reviews the decision
+# - Add comments/feedback
+# - Update decision based on feedback
+# - Consider alternatives
+```
+
+#### 3. Accepting or Rejecting
+```bash
+# If accepted
+# - Update status to "accepted"
+# - Document final rationale
+# - Link to implementation tasks
+
+# If rejected
+# - Update status to "rejected"
+# - Document why it was rejected
+# - Preserve for future reference
+```
+
+#### 4. Implementation
+```bash
+# Create tasks to implement decision
+backlog task create "Implement PostgreSQL migration" \
+  -d "Migrate from SQLite to PostgreSQL (per decision-001)" \
+  --ac "Database schema migrated" \
+  --ac "All data transferred successfully" \
+  --ac "Application updated to use PostgreSQL"
+```
+
+#### 5. Deprecation or Superseding
+```bash
+# If decision becomes outdated
+# - Create new decision
+# - Mark old decision as "deprecated" or "superseded"
+# - Reference new decision in old one
+```
+
+### Linking Decisions to Tasks
+
+Always reference decisions in related tasks:
+
+```bash
+backlog task create "Implement OAuth2 authentication" \
+  -d "Implement OAuth2 as decided in decision-002" \
+  --ac "OAuth2 flow implemented" \
+  --ac "Existing sessions migrated"
+
+# In task notes, reference decision
+backlog task edit 42 --notes $'## Decision Reference
+This implements decision-002: "Use OAuth2 for authentication"
+
+## Implementation
+- Integrated passport-oauth2 library
+- Configured Google and GitHub providers
+...'
+```
+
+### Best Practices for Documentation
+
+#### Document Organization
+
+```bash
+# Architecture documents
+backlog doc create "System Architecture Overview" -t architecture
+backlog doc create "Database Schema Design" -t architecture
+backlog doc create "API Architecture" -t architecture
+
+# Specifications
+backlog doc create "API Specification v2" -t specification
+backlog doc create "Authentication Flow Specification" -t specification
+
+# Guides
+backlog doc create "Development Setup Guide" -t guide
+backlog doc create "Deployment Guide" -t guide
+```
+
+#### Version Control
+
+Documents and decisions are version controlled with Git:
+- Keep documents up to date
+- Use Git history to track changes
+- Reference specific versions when needed
+
+#### Searchability
+
+Use consistent terminology:
+```bash
+# Good - Searchable terms
+backlog doc create "Authentication Architecture"
+backlog decision create "Use JWT for API authentication"
+
+# Bad - Hard to search
+backlog doc create "How we do auth stuff"
+backlog decision create "Token thing"
 ```
 
 ## Best Practices
@@ -628,15 +919,18 @@ backlog decision <id> --plain
 ## Tips
 
 1. **Always use `--plain`** when listing or viewing for AI processing
-2. **Start tasks properly**: Set In Progress and assign to yourself
-3. **Check AC as you go**: Don't wait until end to mark them complete
-4. **Use multiline properly**: Use `$'...\n...'` syntax for newlines
-5. **Multiple flags work**: `--check-ac 1 --check-ac 2 --check-ac 3`
-6. **Organize with labels**: Use consistent labeling scheme
-7. **Atomic tasks**: One PR = One task
-8. **PR-ready notes**: Format notes as GitHub PR description
-9. **Never edit files directly**: Always use CLI commands
-10. **Search is fuzzy**: "auth" finds "authentication"
+2. **For AI: Use backlog for docs**: Create architecture/decision docs with `backlog doc create` or `backlog decision create`, NEVER create standalone .md files
+3. **Start tasks properly**: Set In Progress and assign to yourself
+4. **Check AC as you go**: Don't wait until end to mark them complete
+5. **Use multiline properly**: Use `$'...\n...'` syntax for newlines
+6. **Multiple flags work**: `--check-ac 1 --check-ac 2 --check-ac 3`
+7. **Organize with labels**: Use consistent labeling scheme
+8. **Atomic tasks**: One PR = One task
+9. **PR-ready notes**: Format notes as GitHub PR description
+10. **Never edit files directly**: Always use CLI commands
+11. **Search is fuzzy**: "auth" finds "authentication"
+12. **Document decisions**: Use decision records for architectural choices
+13. **Link decisions to tasks**: Reference decision IDs in related task descriptions
 
 ## Integration with Git
 
@@ -661,3 +955,5 @@ git push
 **📋 Task Quality**: Good AC = Testable outcomes, not implementation steps.
 
 **✅ Definition of Done**: All AC checked + notes + tests passing + status Done.
+
+**📝 Documentation Rule for AI**: Always use `backlog doc create` or `backlog decision create` for project documentation. NEVER create standalone .md files in the project root.
