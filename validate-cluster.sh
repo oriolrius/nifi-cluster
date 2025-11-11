@@ -125,6 +125,7 @@ fi
 CLUSTER_NAME="$1"
 NODE_COUNT="${2:-3}"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose-${CLUSTER_NAME}.yml"
+CLUSTER_DIR="$SCRIPT_DIR/clusters/${CLUSTER_NAME}"
 
 print_header "NiFi Cluster Configuration Validator"
 
@@ -132,46 +133,55 @@ echo "Validation Configuration:"
 echo "  Cluster Name:  $CLUSTER_NAME"
 echo "  Node Count:    $NODE_COUNT"
 echo "  Compose File:  docker-compose-${CLUSTER_NAME}.yml"
+echo "  Cluster Dir:   clusters/${CLUSTER_NAME}"
 echo "  Working Dir:   $SCRIPT_DIR"
 echo ""
 
 # 1. Directory Structure Validation
 print_header "1. Directory Structure Validation"
 
-# Check main directories
+# Check cluster workspace directory
+print_check "DIR" "Checking clusters/${CLUSTER_NAME}/ workspace"
+if [ -d "$CLUSTER_DIR" ]; then
+    print_pass
+else
+    print_fail "Cluster workspace directory not found: clusters/${CLUSTER_NAME}/"
+fi
+
+# Check main directories within cluster workspace
 for dir in certs conf volumes; do
-    print_check "DIR" "Checking $dir/ directory"
-    if [ -d "$SCRIPT_DIR/$dir" ]; then
+    print_check "DIR" "Checking clusters/${CLUSTER_NAME}/$dir/ directory"
+    if [ -d "$CLUSTER_DIR/$dir" ]; then
         print_pass
     else
-        print_fail "Directory $dir/ not found"
+        print_fail "Directory $dir/ not found in cluster workspace"
     fi
 done
 
 # Check ZooKeeper volume directories
 for i in $(seq 1 "$NODE_COUNT"); do
-    print_check "ZK$i" "Checking ZooKeeper-$i volumes"
-    if [ -d "$SCRIPT_DIR/volumes/zookeeper-$i/data" ] && \
-       [ -d "$SCRIPT_DIR/volumes/zookeeper-$i/datalog" ] && \
-       [ -d "$SCRIPT_DIR/volumes/zookeeper-$i/logs" ]; then
+    print_check "ZK$i" "Checking ${CLUSTER_NAME}-zookeeper-$i volumes"
+    if [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-zookeeper-$i/data" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-zookeeper-$i/datalog" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-zookeeper-$i/logs" ]; then
         print_pass
     else
-        print_fail "ZooKeeper-$i volume directories incomplete"
+        print_fail "${CLUSTER_NAME}-zookeeper-$i volume directories incomplete"
     fi
 done
 
 # Check NiFi volume directories
 for i in $(seq 1 "$NODE_COUNT"); do
-    print_check "NFI$i" "Checking NiFi-$i volumes"
-    if [ -d "$SCRIPT_DIR/volumes/nifi-$i/content_repository" ] && \
-       [ -d "$SCRIPT_DIR/volumes/nifi-$i/database_repository" ] && \
-       [ -d "$SCRIPT_DIR/volumes/nifi-$i/flowfile_repository" ] && \
-       [ -d "$SCRIPT_DIR/volumes/nifi-$i/provenance_repository" ] && \
-       [ -d "$SCRIPT_DIR/volumes/nifi-$i/state" ] && \
-       [ -d "$SCRIPT_DIR/volumes/nifi-$i/logs" ]; then
+    print_check "NFI$i" "Checking ${CLUSTER_NAME}-nifi-$i volumes"
+    if [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-nifi-$i/content_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-nifi-$i/database_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-nifi-$i/flowfile_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-nifi-$i/provenance_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-nifi-$i/state" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}-nifi-$i/logs" ]; then
         print_pass
     else
-        print_fail "NiFi-$i volume directories incomplete"
+        print_fail "${CLUSTER_NAME}-nifi-$i volume directories incomplete"
     fi
 done
 
@@ -185,8 +195,8 @@ if ! command -v openssl &> /dev/null; then
 else
     # Check CA certificate
     print_check "CA" "Checking CA certificate"
-    if [ -f "$SCRIPT_DIR/certs/ca/ca-cert.pem" ]; then
-        if openssl x509 -in "$SCRIPT_DIR/certs/ca/ca-cert.pem" -noout -text &>/dev/null; then
+    if [ -f "$CLUSTER_DIR/certs/ca/ca-cert.pem" ]; then
+        if openssl x509 -in "$CLUSTER_DIR/certs/ca/ca-cert.pem" -noout -text &>/dev/null; then
             print_pass
         else
             print_fail "CA certificate is invalid"
@@ -197,18 +207,18 @@ else
 
     # Check node certificates
     for i in $(seq 1 "$NODE_COUNT"); do
-        print_check "CRT$i" "Checking NiFi-$i certificates"
+        print_check "CRT$i" "Checking ${CLUSTER_NAME}-nifi-$i certificates"
 
-        if [ -f "$SCRIPT_DIR/conf/nifi-$i/keystore.p12" ] && \
-           [ -f "$SCRIPT_DIR/conf/nifi-$i/truststore.p12" ]; then
+        if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/keystore.p12" ] && \
+           [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/truststore.p12" ]; then
             # Verify keystore is readable (basic check)
-            if openssl pkcs12 -in "$SCRIPT_DIR/conf/nifi-$i/keystore.p12" -nokeys -passin pass:changeme123456 &>/dev/null; then
+            if openssl pkcs12 -in "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/keystore.p12" -nokeys -passin pass:changeme123456 &>/dev/null; then
                 print_pass
             else
-                print_fail "Keystore for nifi-$i is invalid or password incorrect"
+                print_fail "Keystore for ${CLUSTER_NAME}-nifi-$i is invalid or password incorrect"
             fi
         else
-            print_fail "Certificates missing for nifi-$i"
+            print_fail "Certificates missing for ${CLUSTER_NAME}-nifi-$i"
         fi
     done
 fi
@@ -218,15 +228,15 @@ print_header "3. Configuration Files Validation"
 
 # Check NiFi configuration files
 for i in $(seq 1 "$NODE_COUNT"); do
-    print_check "CFG$i" "Checking NiFi-$i config files"
+    print_check "CFG$i" "Checking ${CLUSTER_NAME}-nifi-$i config files"
 
-    if [ -f "$SCRIPT_DIR/conf/nifi-$i/nifi.properties" ] && \
-       [ -f "$SCRIPT_DIR/conf/nifi-$i/state-management.xml" ] && \
-       [ -f "$SCRIPT_DIR/conf/nifi-$i/authorizers.xml" ] && \
-       [ -f "$SCRIPT_DIR/conf/nifi-$i/bootstrap.conf" ]; then
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/nifi.properties" ] && \
+       [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/state-management.xml" ] && \
+       [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/authorizers.xml" ] && \
+       [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/bootstrap.conf" ]; then
         print_pass
     else
-        print_fail "Configuration files incomplete for nifi-$i"
+        print_fail "Configuration files incomplete for ${CLUSTER_NAME}-nifi-$i"
     fi
 done
 
@@ -234,10 +244,10 @@ done
 print_header "4. Node Address Validation"
 
 for i in $(seq 1 "$NODE_COUNT"); do
-    print_check "ADR$i" "Checking NiFi-$i node address"
+    print_check "ADR$i" "Checking ${CLUSTER_NAME}-nifi-$i node address"
 
-    if [ -f "$SCRIPT_DIR/conf/nifi-$i/nifi.properties" ]; then
-        NODE_ADDR=$(grep "^nifi.cluster.node.address=" "$SCRIPT_DIR/conf/nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/nifi.properties" ]; then
+        NODE_ADDR=$(grep "^nifi.cluster.node.address=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
         EXPECTED_ADDR="nifi-$i"
 
         if [ "$NODE_ADDR" == "$EXPECTED_ADDR" ]; then
@@ -252,10 +262,10 @@ done
 
 # Check remote input host
 for i in $(seq 1 "$NODE_COUNT"); do
-    print_check "RMT$i" "Checking NiFi-$i remote input host"
+    print_check "RMT$i" "Checking ${CLUSTER_NAME}-nifi-$i remote input host"
 
-    if [ -f "$SCRIPT_DIR/conf/nifi-$i/nifi.properties" ]; then
-        REMOTE_HOST=$(grep "^nifi.remote.input.host=" "$SCRIPT_DIR/conf/nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/nifi.properties" ]; then
+        REMOTE_HOST=$(grep "^nifi.remote.input.host=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
         EXPECTED_HOST="nifi-$i"
 
         if [ "$REMOTE_HOST" == "$EXPECTED_HOST" ]; then
@@ -282,10 +292,10 @@ for i in $(seq 1 "$NODE_COUNT"); do
 done
 
 for i in $(seq 1 "$NODE_COUNT"); do
-    print_check "ZKC$i" "Checking NiFi-$i ZooKeeper connect string"
+    print_check "ZKC$i" "Checking ${CLUSTER_NAME}-nifi-$i ZooKeeper connect string"
 
-    if [ -f "$SCRIPT_DIR/conf/nifi-$i/nifi.properties" ]; then
-        ZK_CONNECT=$(grep "^nifi.zookeeper.connect.string=" "$SCRIPT_DIR/conf/nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/nifi.properties" ]; then
+        ZK_CONNECT=$(grep "^nifi.zookeeper.connect.string=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}-nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
 
         if [ "$ZK_CONNECT" == "$EXPECTED_ZK" ]; then
             print_pass

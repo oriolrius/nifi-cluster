@@ -191,37 +191,41 @@ print_success "All required scripts found"
 
 echo ""
 
-# Step 2: Initialize volumes
-print_step 2 5 "Initializing Volume Directories"
+# Step 2: Initialize cluster workspace directories
+print_step 2 5 "Initializing Cluster Workspace Directories"
 echo ""
 
-mkdir -p volumes
+# Create cluster-specific workspace
+CLUSTER_DIR="clusters/${CLUSTER_NAME}"
+mkdir -p "${CLUSTER_DIR}"/{volumes,conf,certs}
+print_success "Created workspace: ${CLUSTER_DIR}"
 
+echo ""
 echo "Creating ZooKeeper volume directories..."
 for i in $(seq 1 "$NODE_COUNT"); do
-    mkdir -p "volumes/zookeeper-${i}"/{data,datalog,logs}
-    echo "  → Created volumes/zookeeper-${i}/{data,datalog,logs}"
+    mkdir -p "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-zookeeper-${i}"/{data,datalog,logs}
+    echo "  → Created ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-zookeeper-${i}/{data,datalog,logs}"
 done
 
 echo ""
 echo "Creating NiFi volume directories..."
 for i in $(seq 1 "$NODE_COUNT"); do
-    mkdir -p "volumes/nifi-${i}"/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}
-    echo "  → Created volumes/nifi-${i}/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}"
+    mkdir -p "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-nifi-${i}"/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}
+    echo "  → Created ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-nifi-${i}/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}"
 done
 
 echo ""
 echo "Setting permissions..."
 # Set proper ownership (1000:1000 is common for NiFi and ZooKeeper)
 if command -v sudo &> /dev/null; then
-    sudo chown -R 1000:1000 volumes/zookeeper-* 2>/dev/null || print_warning "Could not set ownership on ZooKeeper volumes (may require manual intervention)"
-    sudo chown -R 1000:1000 volumes/nifi-* 2>/dev/null || print_warning "Could not set ownership on NiFi volumes (may require manual intervention)"
+    sudo chown -R 1000:1000 "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-zookeeper-"* 2>/dev/null || print_warning "Could not set ownership on ZooKeeper volumes (may require manual intervention)"
+    sudo chown -R 1000:1000 "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-nifi-"* 2>/dev/null || print_warning "Could not set ownership on NiFi volumes (may require manual intervention)"
     print_success "Permissions set (UID:GID 1000:1000)"
 else
     print_warning "sudo not available - you may need to manually set ownership on volume directories"
 fi
 
-print_success "Volume initialization complete"
+print_success "Cluster workspace initialization complete"
 echo ""
 
 # Step 3: Generate certificates
@@ -229,8 +233,8 @@ print_step 3 5 "Generating SSL/TLS Certificates"
 echo ""
 
 cd "$SCRIPT_DIR/certs"
-if ./generate-certs.sh "$NODE_COUNT"; then
-    print_success "Certificates generated successfully"
+if ./generate-certs.sh "$NODE_COUNT" "$SCRIPT_DIR/${CLUSTER_DIR}/certs" "$CLUSTER_NAME"; then
+    print_success "Certificates generated successfully in ${CLUSTER_DIR}/certs"
 else
     print_error "Certificate generation failed"
     exit 1
@@ -243,8 +247,8 @@ print_step 4 5 "Generating NiFi Configuration Files"
 echo ""
 
 cd "$SCRIPT_DIR/conf"
-if ./generate-cluster-configs.sh "$CLUSTER_NAME" "$CLUSTER_NUM" "$NODE_COUNT"; then
-    print_success "NiFi configurations generated successfully"
+if ./generate-cluster-configs.sh "$CLUSTER_NAME" "$CLUSTER_NUM" "$NODE_COUNT" "$SCRIPT_DIR/${CLUSTER_DIR}/conf" "$SCRIPT_DIR/${CLUSTER_DIR}/certs"; then
+    print_success "NiFi configurations generated successfully in ${CLUSTER_DIR}/conf"
 else
     print_error "Configuration generation failed"
     exit 1

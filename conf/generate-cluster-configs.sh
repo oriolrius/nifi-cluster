@@ -1,6 +1,6 @@
 #!/bin/bash
 # Generate complete NiFi cluster configuration from templates
-# Usage: ./generate-cluster-configs.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
+# Usage: ./generate-cluster-configs.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT> [OUTPUT_DIR] [CERTS_DIR]
 #
 # Example: ./generate-cluster-configs.sh production 1 3
 #   - Creates configs for 3 nodes
@@ -20,16 +20,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Validate input parameters
-if [ $# -ne 3 ]; then
+if [ $# -lt 3 ]; then
     echo -e "${RED}Error: Invalid number of arguments${NC}"
-    echo "Usage: $0 <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>"
+    echo "Usage: $0 <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT> [OUTPUT_DIR] [CERTS_DIR]"
     echo ""
     echo "Parameters:"
-    echo "  CLUSTER_NAME  - Descriptive name for the cluster (e.g., 'production', 'staging')"
+    echo "  CLUSTER_NAME  - Descriptive name for the cluster (e.g., 'cluster01', 'cluster02')"
     echo "  CLUSTER_NUM   - Cluster number for port calculation (integer >= 0)"
     echo "  NODE_COUNT    - Number of nodes in the cluster (integer >= 1)"
+    echo "  OUTPUT_DIR    - Output directory for configurations (default: current directory)"
+    echo "  CERTS_DIR     - Directory containing certificates (default: ../certs)"
     echo ""
-    echo "Example: $0 production 1 3"
+    echo "Example: $0 cluster01 1 3 /path/to/output /path/to/certs"
     echo "  Creates a 3-node cluster with base port 30000 (29000 + 1*1000)"
     exit 1
 fi
@@ -37,6 +39,8 @@ fi
 CLUSTER_NAME="$1"
 CLUSTER_NUM="$2"
 NODE_COUNT="$3"
+OUTPUT_DIR="${4:-$SCRIPT_DIR}"
+CERTS_DIR="${5:-$PROJECT_ROOT/certs}"
 
 # Validate parameters
 if ! [[ "$CLUSTER_NUM" =~ ^[0-9]+$ ]]; then
@@ -102,8 +106,8 @@ echo ""
 
 # Generate configuration for each node
 for i in $(seq 1 "$NODE_COUNT"); do
-    NODE_NAME="nifi-${i}"
-    CONF_DIR="${SCRIPT_DIR}/${NODE_NAME}"
+    NODE_NAME="${CLUSTER_NAME}-nifi-${i}"
+    CONF_DIR="${OUTPUT_DIR}/${NODE_NAME}"
     HTTPS_PORT=$((HTTPS_BASE + i - 1))
     S2S_PORT=$((S2S_BASE + i - 1))
 
@@ -112,6 +116,13 @@ for i in $(seq 1 "$NODE_COUNT"); do
     # Create node configuration directory
     mkdir -p "$CONF_DIR"
     mkdir -p "$CONF_DIR/archive"
+
+    # Copy certificates from CERTS_DIR if they exist
+    if [ -d "${CERTS_DIR}/${NODE_NAME}" ]; then
+        echo "  → Copying certificates from ${CERTS_DIR}/${NODE_NAME}"
+        cp "${CERTS_DIR}/${NODE_NAME}/keystore.p12" "$CONF_DIR/" 2>/dev/null || true
+        cp "${CERTS_DIR}/${NODE_NAME}/truststore.p12" "$CONF_DIR/" 2>/dev/null || true
+    fi
 
     # Generate nifi.properties
     echo "  → Generating nifi.properties"

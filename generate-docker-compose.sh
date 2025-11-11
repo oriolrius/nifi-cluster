@@ -150,9 +150,9 @@ for i in $(seq 1 "$NODE_COUNT"); do
       ZOO_SYNC_LIMIT: 5
       ZOO_MAX_CLIENT_CNXNS: 60
     volumes:
-      - ./volumes/zookeeper-${i}/data:/data
-      - ./volumes/zookeeper-${i}/datalog:/datalog
-      - ./volumes/zookeeper-${i}/logs:/logs
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-zookeeper-${i}/data:/data
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-zookeeper-${i}/datalog:/datalog
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-zookeeper-${i}/logs:/logs
     restart: unless-stopped
 
 EOF
@@ -201,13 +201,13 @@ for i in $(seq 1 "$NODE_COUNT"); do
       NIFI_JVM_HEAP_INIT: \${NIFI_JVM_HEAP_INIT:-2g}
       NIFI_JVM_HEAP_MAX: \${NIFI_JVM_HEAP_MAX:-2g}
     volumes:
-      - ./conf/nifi-${i}:/opt/nifi/nifi-current/conf:rw
-      - ./volumes/nifi-${i}/content_repository:/opt/nifi/nifi-current/content_repository
-      - ./volumes/nifi-${i}/database_repository:/opt/nifi/nifi-current/database_repository
-      - ./volumes/nifi-${i}/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
-      - ./volumes/nifi-${i}/provenance_repository:/opt/nifi/nifi-current/provenance_repository
-      - ./volumes/nifi-${i}/state:/opt/nifi/nifi-current/state
-      - ./volumes/nifi-${i}/logs:/opt/nifi/nifi-current/logs
+      - ./clusters/${CLUSTER_NAME}/conf/${CLUSTER_NAME}-nifi-${i}:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/state:/opt/nifi/nifi-current/state
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/logs:/opt/nifi/nifi-current/logs
     depends_on:
 $(echo -e "$ZK_DEPENDS")
     restart: unless-stopped

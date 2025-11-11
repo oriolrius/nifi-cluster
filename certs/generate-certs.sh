@@ -1,11 +1,27 @@
 #!/bin/bash
 # NiFi Cluster PKI Certificate Generation Script
 # Generates Root CA and server certificates for NiFi and ZooKeeper nodes
+# Usage: ./generate-certs.sh <NODE_COUNT> [OUTPUT_DIR] [CLUSTER_NAME]
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+
+# Parse parameters
+NODE_COUNT="${1:-3}"
+OUTPUT_DIR="${2:-$SCRIPT_DIR}"
+CLUSTER_NAME="${3:-default}"
+
+# Validate NODE_COUNT
+if ! [[ "$NODE_COUNT" =~ ^[0-9]+$ ]] || [ "$NODE_COUNT" -lt 1 ]; then
+    echo "Error: NODE_COUNT must be a positive integer"
+    echo "Usage: $0 <NODE_COUNT> [OUTPUT_DIR] [CLUSTER_NAME]"
+    exit 1
+fi
+
+# Create output directory if it doesn't exist
+mkdir -p "$OUTPUT_DIR"
+cd "$OUTPUT_DIR"
 
 # Configuration
 CA_SUBJECT="/C=US/ST=California/L=San Francisco/O=NiFi Cluster/OU=Certificate Authority/CN=NiFi Cluster Root CA"
@@ -17,18 +33,23 @@ TRUSTSTORE_PASS="changeme123456"
 echo "==============================================="
 echo "NiFi Cluster PKI Generation"
 echo "==============================================="
+echo "Cluster Name:  $CLUSTER_NAME"
+echo "Node Count:    $NODE_COUNT"
+echo "Output Dir:    $OUTPUT_DIR"
 echo ""
 
 # Create directories if they don't exist
 mkdir -p ca
-mkdir -p nifi-1 nifi-2 nifi-3
-mkdir -p zookeeper-1 zookeeper-2 zookeeper-3
+for i in $(seq 1 "$NODE_COUNT"); do
+    mkdir -p "${CLUSTER_NAME}-nifi-${i}"
+    mkdir -p "${CLUSTER_NAME}-zookeeper-${i}"
+done
 
 # Clean up existing certificates
 echo "Cleaning up old certificates..."
 rm -f ca/*.pem ca/*.key ca/*.srl ca/*.jks ca/*.p12
-rm -f nifi-*/*.{pem,key,csr,p12,jks,cnf}
-rm -f zookeeper-*/*.{pem,key,csr,p12,jks,cnf}
+rm -f ${CLUSTER_NAME}-nifi-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
+rm -f ${CLUSTER_NAME}-zookeeper-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
 
 echo ""
 echo "Step 1: Creating Root CA"
@@ -67,11 +88,13 @@ echo ""
 echo "Step 2: Generating NiFi Node Certificates"
 echo "---------------------------------------"
 
-for node in nifi-1 nifi-2 nifi-3; do
-    echo "Generating certificates for $node..."
+for i in $(seq 1 "$NODE_COUNT"); do
+    node="nifi-${i}"
+    node_fqn="${CLUSTER_NAME}-${node}"
+    echo "Generating certificates for $node_fqn..."
 
-    NODE_DIR="$node"
-    SUBJECT="/C=US/ST=California/L=San Francisco/O=NiFi Cluster/OU=NiFi Nodes/CN=$node"
+    NODE_DIR="${CLUSTER_NAME}-${node}"
+    SUBJECT="/C=US/ST=California/L=San Francisco/O=NiFi Cluster/OU=NiFi Nodes/CN=$node_fqn"
 
     # Generate private key
     openssl genrsa -out "$NODE_DIR/server-key.pem" $KEY_SIZE
@@ -95,7 +118,7 @@ ST = California
 L = San Francisco
 O = NiFi Cluster
 OU = NiFi Nodes
-CN = $node
+CN = $node_fqn
 
 [v3_req]
 keyUsage = keyEncipherment, dataEncipherment, digitalSignature
@@ -103,8 +126,9 @@ extendedKeyUsage = serverAuth, clientAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = $node
-DNS.2 = localhost
+DNS.1 = $node_fqn
+DNS.2 = $node
+DNS.3 = localhost
 IP.1 = 127.0.0.1
 EOF
 
@@ -146,18 +170,20 @@ EOF
     chmod 644 "$NODE_DIR"/*.jks
     chmod 600 "$NODE_DIR"/*.p12
 
-    echo "✓ Generated certificates for $node"
+    echo "✓ Generated certificates for $node_fqn"
 done
 
 echo ""
 echo "Step 3: Generating ZooKeeper Node Certificates"
 echo "---------------------------------------"
 
-for node in zookeeper-1 zookeeper-2 zookeeper-3; do
-    echo "Generating certificates for $node..."
+for i in $(seq 1 "$NODE_COUNT"); do
+    node="zookeeper-${i}"
+    node_fqn="${CLUSTER_NAME}-${node}"
+    echo "Generating certificates for $node_fqn..."
 
-    NODE_DIR="$node"
-    SUBJECT="/C=US/ST=California/L=San Francisco/O=NiFi Cluster/OU=ZooKeeper Nodes/CN=$node"
+    NODE_DIR="${CLUSTER_NAME}-${node}"
+    SUBJECT="/C=US/ST=California/L=San Francisco/O=NiFi Cluster/OU=ZooKeeper Nodes/CN=$node_fqn"
 
     # Generate private key
     openssl genrsa -out "$NODE_DIR/server-key.pem" $KEY_SIZE
@@ -181,7 +207,7 @@ ST = California
 L = San Francisco
 O = NiFi Cluster
 OU = ZooKeeper Nodes
-CN = $node
+CN = $node_fqn
 
 [v3_req]
 keyUsage = keyEncipherment, dataEncipherment, digitalSignature
@@ -189,8 +215,9 @@ extendedKeyUsage = serverAuth, clientAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = $node
-DNS.2 = localhost
+DNS.1 = $node_fqn
+DNS.2 = $node
+DNS.3 = localhost
 IP.1 = 127.0.0.1
 EOF
 
@@ -232,7 +259,7 @@ EOF
     chmod 644 "$NODE_DIR"/*.jks
     chmod 600 "$NODE_DIR"/*.p12
 
-    echo "✓ Generated certificates for $node"
+    echo "✓ Generated certificates for $node_fqn"
 done
 
 echo ""
