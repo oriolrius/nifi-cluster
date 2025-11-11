@@ -6,6 +6,9 @@
 # Runtime volumes (contains runtime data)
 volumes/
 
+# NiFi runtime flow archives
+conf/*/archive/
+
 # Node modules
 node_modules/
 npm-debug.log*

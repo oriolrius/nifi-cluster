@@ -1,5 +1,5 @@
 ---
-id: doc-005
+id: decision-001
 title: Current NiFi Cluster Architecture (Single Cluster)
 type: other
 created_date: '2025-11-11 15:10'
@@ -109,6 +109,123 @@ Port    Service                    Usage
 - Username: `admin` (configurable in `.env`)
 - Password: Stored in `.env` file
 - Configured via environment variables in docker-compose.yml
+
+#### Web Frontend to Backend Connection
+
+**Critical Configuration**: `nifi.web.proxy.host`
+
+This is the **most important setting** for enabling web UI access to different nodes via different ports. Here's how it works:
+
+**Port Mapping Architecture**:
+```
+Browser Request:
+  https://localhost:59443/nifi
+        ↓
+  Docker Port Mapping (59443:8443)
+        ↓
+  Container nifi-1 internal port 8443
+        ↓
+  NiFi validates request against nifi.web.proxy.host
+        ↓
+  Serves web UI
+```
+
+**How nifi.web.proxy.host Works**:
+
+```properties
+nifi.web.proxy.host=localhost:59443,localhost:59444,localhost:59445,nifi-1:8443,nifi-2:8443,nifi-3:8443
+```
+
+This property tells NiFi which `Host` headers to accept. When you access:
+- `https://localhost:59443/nifi` → Browser sends `Host: localhost:59443`
+- `https://localhost:59444/nifi` → Browser sends `Host: localhost:59444`
+- `https://localhost:59445/nifi` → Browser sends `Host: localhost:59445`
+
+**Why Both localhost AND container hostnames?**
+
+1. **`localhost:59443`** - For external browser access from the host
+   - User types: `https://localhost:59443/nifi`
+   - Docker maps: `59443` (host) → `8443` (container)
+   - NiFi receives request with `Host: localhost:59443`
+   - Validates against proxy host list ✓
+
+2. **`nifi-1:8443`** - For internal cluster communication
+   - Cluster coordinator needs to redirect to specific node
+   - Internal API calls between nodes
+   - Load balancer redirects
+   - NiFi receives request with `Host: nifi-1:8443`
+   - Validates against proxy host list ✓
+
+**What Happens Without This Configuration?**
+
+If `nifi.web.proxy.host` is not set correctly:
+```
+Browser → https://localhost:59443/nifi
+NiFi receives Host: localhost:59443
+NiFi checks: Is "localhost:59443" in my proxy host list?
+Result: NO → HTTP 403 Forbidden or redirect loop
+```
+
+**Certificate Validation Flow**:
+
+```
+1. Browser connects to localhost:59443
+   ↓
+2. TLS handshake with nifi-1's certificate
+   - Certificate CN: nifi-1
+   - SAN: DNS.1=nifi-1, DNS.2=localhost, IP.1=127.0.0.1
+   ↓
+3. Browser validates certificate against SAN
+   - Requested: localhost
+   - SAN includes: localhost ✓
+   - Certificate trusted (self-signed, user accepts)
+   ↓
+4. Browser sends HTTP request
+   - Host: localhost:59443
+   ↓
+5. NiFi validates Host header
+   - Is "localhost:59443" in nifi.web.proxy.host? ✓
+   - Proceed to serve request
+```
+
+**Docker Port Mapping Details**:
+
+Each node maps different external ports to the same internal port:
+
+| Container | Internal Port | External Port | Access URL |
+|-----------|---------------|---------------|------------|
+| nifi-1    | 8443          | 59443         | https://localhost:59443/nifi |
+| nifi-2    | 8443          | 59444         | https://localhost:59444/nifi |
+| nifi-3    | 8443          | 59445         | https://localhost:59445/nifi |
+
+**Why This Matters for Multi-Cluster**:
+
+When creating multiple clusters, each cluster needs:
+1. **Unique external ports** (59143-59145 for cluster01, 59243-59245 for cluster02)
+2. **Correct proxy host configuration** listing all external ports
+3. **Certificates with localhost SAN** to allow host access
+4. **Matching container hostnames** in proxy host list
+
+**Example for Multi-Cluster** (future):
+
+Cluster 01:
+```properties
+nifi.web.proxy.host=localhost:59143,localhost:59144,localhost:59145,cluster01-nifi01:8443,cluster01-nifi02:8443,cluster01-nifi03:8443
+```
+
+Cluster 02:
+```properties
+nifi.web.proxy.host=localhost:59243,localhost:59244,localhost:59245,cluster02-nifi01:8443,cluster02-nifi02:8443,cluster02-nifi03:8443
+```
+
+**Troubleshooting Connection Issues**:
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| "Invalid Host header" | Proxy host not configured | Add to `nifi.web.proxy.host` |
+| Certificate error | SAN doesn't include localhost | Regenerate cert with SAN |
+| Redirect loop | Proxy host incomplete | Add all node:port combinations |
+| 403 Forbidden | Proxy host mismatch | Verify exact host:port in list |
 
 ### 1.4 Directory Structure
 
