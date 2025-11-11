@@ -1,6 +1,22 @@
 #!/bin/bash
 # Comprehensive NiFi Cluster Testing Script
 # Tests SSL/TLS, authentication, backend API, and cluster connectivity
+#
+# Usage: ./test-cluster.sh [OPTIONS] <CLUSTER_NAME> [NODE_COUNT] [BASE_PORT]
+#
+# Arguments:
+#   CLUSTER_NAME    Name of the cluster to test (e.g., cluster01, cluster02)
+#   NODE_COUNT      Number of NiFi nodes in the cluster (default: 3)
+#   BASE_PORT       Base HTTPS port for the cluster (default: 30443)
+#
+# Options:
+#   --help, -h      Show this help message
+#
+# Examples:
+#   ./test-cluster.sh cluster01                    # Test cluster01 with defaults (3 nodes, port 30443)
+#   ./test-cluster.sh cluster01 3 30443            # Test cluster01 explicitly
+#   ./test-cluster.sh cluster02 3 31443            # Test cluster02 on port 31443
+#   ./test-cluster.sh --help                       # Show this help
 
 # Don't exit on error - we want to collect all test results
 set +e
@@ -13,13 +29,69 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Show help function
+show_help() {
+    cat << EOF
+Comprehensive NiFi Cluster Testing Script
+=========================================
+
+Tests SSL/TLS, authentication, backend API, and cluster connectivity.
+
+Usage: $0 [OPTIONS] <CLUSTER_NAME> [NODE_COUNT] [BASE_PORT]
+
+Arguments:
+  CLUSTER_NAME    Name of the cluster to test (e.g., cluster01, cluster02)
+  NODE_COUNT      Number of NiFi nodes in the cluster (default: 3)
+  BASE_PORT       Base HTTPS port for the cluster (default: 30443)
+
+Options:
+  --help, -h      Show this help message
+
+Examples:
+  $0 cluster01                    # Test cluster01 with defaults
+  $0 cluster01 3 30443            # Test cluster01 explicitly
+  $0 cluster02 3 31443            # Test cluster02 on port 31443
+
+Environment Variables:
+  NIFI_USERNAME   NiFi username (default: admin)
+  NIFI_PASSWORD   NiFi password (default: changeme123456)
+
+Tests Performed:
+  1. Prerequisites check (tools, certificates)
+  2. Container status check
+  3. Web UI access (HTTPS)
+  4. Authentication & JWT token generation
+  5. Backend API access
+  6. Cluster status verification
+  7. ZooKeeper health check
+  8. SSL/TLS certificate validation
+  9. Flow replication test
+
+EOF
+    exit 0
+}
+
+# Parse command line arguments
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    show_help
+fi
+
+if [ -z "$1" ]; then
+    echo "Error: CLUSTER_NAME is required"
+    echo "Run '$0 --help' for usage information"
+    exit 1
+fi
+
 # Configuration
+CLUSTER_NAME="$1"
+NODE_COUNT="${2:-3}"
+BASE_PORT="${3:-30443}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CA_CERT="${SCRIPT_DIR}/certs/ca/ca-cert.pem"
 USERNAME="${NIFI_USERNAME:-admin}"
 PASSWORD="${NIFI_PASSWORD:-changeme123456}"
-NODE_COUNT=3
-BASE_PORT=30443
+ZK_BASE_PORT=$((BASE_PORT - 262))  # 30443 - 262 = 30181
 
 # Counters
 PASSED=0
@@ -87,22 +159,25 @@ test_prerequisites() {
 test_container_status() {
     print_header "2. Container Status Check"
 
-    print_test "Checking Docker Compose services..."
+    print_test "Checking Docker containers for cluster: $CLUSTER_NAME..."
 
-    if docker compose ps --format json > /dev/null 2>&1; then
-        CONTAINERS=$(docker compose ps --format json | jq -r '.Name')
+    # Get containers for this specific cluster
+    CONTAINERS=$(docker ps -a --format '{{.Names}}' | grep "^${CLUSTER_NAME}-")
 
-        for container in $CONTAINERS; do
-            STATUS=$(docker compose ps --format json | jq -r "select(.Name==\"$container\") | .State")
-            if [ "$STATUS" == "running" ]; then
-                print_pass "$container is running"
-            else
-                print_fail "$container is $STATUS"
-            fi
-        done
-    else
-        print_fail "Could not query docker compose services"
+    if [ -z "$CONTAINERS" ]; then
+        print_fail "No containers found for cluster $CLUSTER_NAME"
+        echo ""
+        return
     fi
+
+    for container in $CONTAINERS; do
+        STATUS=$(docker ps --format '{{.Names}}\t{{.State}}' | grep "^${container}" | awk '{print $2}')
+        if [ "$STATUS" == "running" ]; then
+            print_pass "$container is running"
+        else
+            print_fail "$container is $STATUS"
+        fi
+    done
 
     echo ""
 }
@@ -223,13 +298,21 @@ test_zookeeper_health() {
     print_header "7. ZooKeeper Health Check"
 
     for i in $(seq 1 $NODE_COUNT); do
-        ZK_PORT=$((30180 + i))
+        ZK_PORT=$((ZK_BASE_PORT + i - 1))
+        CONTAINER_NAME="${CLUSTER_NAME}-zookeeper-${i}"
         print_test "Testing ZooKeeper Node $i (port $ZK_PORT)..."
 
-        if docker compose ps zookeeper-$i --format json 2>/dev/null | jq -e 'select(.State=="running")' > /dev/null 2>&1; then
-            print_pass "ZooKeeper-$i is running"
+        # Check if container is running
+        if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            # Test ZK with ruok command
+            RESPONSE=$(echo "ruok" | nc localhost $ZK_PORT 2>/dev/null)
+            if [ "$RESPONSE" == "imok" ]; then
+                print_pass "ZooKeeper-$i is running and healthy"
+            else
+                print_pass "ZooKeeper-$i is running (could not verify health)"
+            fi
         else
-            print_fail "ZooKeeper-$i is not running"
+            print_fail "ZooKeeper-$i container not found or not running"
         fi
     done
 
@@ -406,10 +489,12 @@ main() {
     echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo "Configuration:"
+    echo "  Cluster Name:   $CLUSTER_NAME"
     echo "  CA Certificate: $CA_CERT"
     echo "  Username:       $USERNAME"
     echo "  Node Count:     $NODE_COUNT"
     echo "  Base Port:      $BASE_PORT"
+    echo "  ZK Base Port:   $ZK_BASE_PORT"
     echo ""
 
     test_prerequisites

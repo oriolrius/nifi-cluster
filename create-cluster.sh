@@ -31,7 +31,7 @@ ${CYAN}╚═══════════════════════�
 Usage: $0 <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
 
 Parameters:
-  CLUSTER_NAME  - Descriptive name for the cluster (e.g., 'production', 'staging')
+  CLUSTER_NAME  - Name for the cluster (e.g., 'cluster01', 'cluster02')
   CLUSTER_NUM   - Cluster number for port calculation (integer >= 0)
   NODE_COUNT    - Number of nodes in the cluster (integer >= 1)
 
@@ -43,17 +43,17 @@ Port Calculation:
   S2S Ports:    BASE_PORT + 100 to BASE_PORT + 100 + NODE_COUNT - 1
 
 Examples:
-  # Production cluster (3 nodes, cluster #0)
-  $0 production 0 3
-  → Base port: 29000, HTTPS: 29443-29445
-
-  # Staging cluster (3 nodes, cluster #1)
-  $0 staging 1 3
+  # First cluster (3 nodes, cluster #1)
+  $0 cluster01 1 3
   → Base port: 30000, HTTPS: 30443-30445
 
-  # Development cluster (2 nodes, cluster #2)
-  $0 dev 2 2
-  → Base port: 31000, HTTPS: 31443-31444
+  # Second cluster (3 nodes, cluster #2)
+  $0 cluster02 2 3
+  → Base port: 31000, HTTPS: 31443-31445
+
+  # Third cluster (2 nodes, cluster #3)
+  $0 cluster03 3 2
+  → Base port: 32000, HTTPS: 32443-32444
 
 What this script does:
   1. Validates prerequisites (Docker, required directories)
@@ -253,13 +253,13 @@ cd "$SCRIPT_DIR"
 echo ""
 
 # Step 5: Generate docker-compose.yml
-print_step 5 5 "Generating docker-compose.yml"
+print_step 5 5 "Generating docker-compose-${CLUSTER_NAME}.yml"
 echo ""
 
 if ./generate-docker-compose.sh "$CLUSTER_NAME" "$CLUSTER_NUM" "$NODE_COUNT"; then
-    print_success "docker-compose.yml generated successfully"
+    print_success "docker-compose-${CLUSTER_NAME}.yml generated successfully"
 else
-    print_error "docker-compose.yml generation failed"
+    print_error "docker-compose file generation failed"
     exit 1
 fi
 echo ""
@@ -288,20 +288,20 @@ echo ""
 echo -e "${CYAN}Next Steps:${NC}"
 echo "  1. Review .env file and update passwords if needed"
 echo "  2. Start the cluster:"
-echo "     ${YELLOW}docker compose up -d${NC}"
+echo "     ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml up -d${NC}"
 echo ""
 echo "  3. Monitor startup:"
-echo "     ${YELLOW}docker compose logs -f${NC}"
+echo "     ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml logs -f${NC}"
 echo ""
 echo "  4. Wait 2-3 minutes for cluster initialization"
 echo ""
 echo "  5. Access the NiFi UI at any of the URLs above"
 echo ""
-echo -e "${CYAN}Useful Commands:${NC}"
-echo "  View logs:         ${YELLOW}docker compose logs -f nifi-1${NC}"
-echo "  Check status:      ${YELLOW}docker compose ps${NC}"
-echo "  Stop cluster:      ${YELLOW}docker compose down${NC}"
-echo "  Restart cluster:   ${YELLOW}docker compose restart${NC}"
+echo -e "${CYAN}Useful Commands for ${CLUSTER_NAME}:${NC}"
+echo "  View logs:         ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml logs -f nifi-1${NC}"
+echo "  Check status:      ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml ps${NC}"
+echo "  Stop cluster:      ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml down${NC}"
+echo "  Restart cluster:   ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml restart${NC}"
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║  Happy clustering! 🚀                                          ║${NC}"

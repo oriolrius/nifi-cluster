@@ -2,8 +2,8 @@
 # Generate docker-compose.yml for NiFi cluster
 # Usage: ./generate-docker-compose.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
 #
-# Example: ./generate-docker-compose.sh production 1 3
-#   - Creates docker-compose.yml for 3-node cluster
+# Example: ./generate-docker-compose.sh cluster01 1 3
+#   - Creates docker-compose-cluster01.yml for 3-node cluster
 #   - Base port: 29000 + (1 * 1000) = 30000
 #   - External ports: 30443-30445 (HTTPS), 30181-30183 (ZK), 30100-30102 (S2S)
 
@@ -24,12 +24,12 @@ if [ $# -ne 3 ]; then
     echo "Usage: $0 <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>"
     echo ""
     echo "Parameters:"
-    echo "  CLUSTER_NAME  - Descriptive name for the cluster (e.g., 'production', 'staging')"
+    echo "  CLUSTER_NAME  - Name for the cluster (e.g., 'cluster01', 'cluster02')"
     echo "  CLUSTER_NUM   - Cluster number for port calculation (integer >= 0)"
     echo "  NODE_COUNT    - Number of nodes in the cluster (integer >= 1)"
     echo ""
-    echo "Example: $0 production 1 3"
-    echo "  Creates docker-compose.yml for a 3-node cluster with base port 30000"
+    echo "Example: $0 cluster01 1 3"
+    echo "  Creates docker-compose-cluster01.yml for a 3-node cluster with base port 30000"
     exit 1
 fi
 
@@ -114,9 +114,9 @@ for i in $(seq 1 "$NODE_COUNT"); do
     fi
 done
 
-OUTPUT_FILE="${SCRIPT_DIR}/docker-compose.yml"
+OUTPUT_FILE="${SCRIPT_DIR}/docker-compose-${CLUSTER_NAME}.yml"
 
-echo -e "${YELLOW}Generating docker-compose.yml...${NC}"
+echo -e "${YELLOW}Generating docker-compose-${CLUSTER_NAME}.yml...${NC}"
 echo ""
 
 # Generate docker-compose.yml
@@ -251,5 +251,11 @@ echo "Next steps:"
 echo "  1. Generate configurations: cd conf && ./generate-cluster-configs.sh ${CLUSTER_NAME} ${CLUSTER_NUM} ${NODE_COUNT}"
 echo "  2. Generate certificates: cd certs && ./generate-certs.sh ${NODE_COUNT}"
 echo "  3. Initialize volumes: ./init-volumes.sh"
-echo "  4. Start cluster: docker compose up -d"
+echo "  4. Start cluster: docker compose -f docker-compose-${CLUSTER_NAME}.yml up -d"
+echo ""
+echo "Cluster Management Commands:"
+echo "  Start:   docker compose -f docker-compose-${CLUSTER_NAME}.yml up -d"
+echo "  Stop:    docker compose -f docker-compose-${CLUSTER_NAME}.yml down"
+echo "  Logs:    docker compose -f docker-compose-${CLUSTER_NAME}.yml logs -f"
+echo "  Status:  docker compose -f docker-compose-${CLUSTER_NAME}.yml ps"
 echo ""
