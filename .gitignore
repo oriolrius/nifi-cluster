@@ -50,7 +50,10 @@ backup-*.tar.gz
 shared/certs/ca/
 
 # Generated cluster instances (contains certificates, configs, volumes)
-clusters/*/
+clusters/
+
+# Generated cluster docker-compose files
+docker-compose-cluster*.yml
 
 # Keep placeholder to preserve directory structure
 !clusters/.placeholder
