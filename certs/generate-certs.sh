@@ -19,11 +19,16 @@ echo "NiFi Cluster PKI Generation"
 echo "==============================================="
 echo ""
 
+# Create directories if they don't exist
+mkdir -p ca
+mkdir -p nifi-1 nifi-2 nifi-3
+mkdir -p zookeeper-1 zookeeper-2 zookeeper-3
+
 # Clean up existing certificates
 echo "Cleaning up old certificates..."
-rm -f ca/*.pem ca/*.key ca/*.srl ca/*.jks
-rm -f nifi-*/*.{pem,key,csr,p12,jks}
-rm -f zookeeper-*/*.{pem,key,csr,p12,jks}
+rm -f ca/*.pem ca/*.key ca/*.srl ca/*.jks ca/*.p12
+rm -f nifi-*/*.{pem,key,csr,p12,jks,cnf}
+rm -f zookeeper-*/*.{pem,key,csr,p12,jks,cnf}
 
 echo ""
 echo "Step 1: Creating Root CA"
@@ -47,6 +52,16 @@ keytool -import -noprompt \
     -keystore ca/truststore.jks \
     -storepass "$TRUSTSTORE_PASS"
 echo "✓ Created JKS truststore"
+
+# Convert JKS truststore to PKCS12
+keytool -importkeystore -noprompt \
+    -srckeystore ca/truststore.jks \
+    -srcstoretype JKS \
+    -srcstorepass "$TRUSTSTORE_PASS" \
+    -destkeystore ca/truststore.p12 \
+    -deststoretype PKCS12 \
+    -deststorepass "$TRUSTSTORE_PASS"
+echo "✓ Created PKCS12 truststore"
 
 echo ""
 echo "Step 2: Generating NiFi Node Certificates"
@@ -123,11 +138,13 @@ EOF
         -deststorepass "$KEYSTORE_PASS" \
         -destkeypass "$KEYSTORE_PASS"
 
-    # Copy truststore to node directory
+    # Copy truststores to node directory
     cp ca/truststore.jks "$NODE_DIR/truststore.jks"
+    cp ca/truststore.p12 "$NODE_DIR/truststore.p12"
 
     # Set permissions
     chmod 644 "$NODE_DIR"/*.jks
+    chmod 600 "$NODE_DIR"/*.p12
 
     echo "✓ Generated certificates for $node"
 done
@@ -207,11 +224,13 @@ EOF
         -deststorepass "$KEYSTORE_PASS" \
         -destkeypass "$KEYSTORE_PASS"
 
-    # Copy truststore
+    # Copy truststores
     cp ca/truststore.jks "$NODE_DIR/truststore.jks"
+    cp ca/truststore.p12 "$NODE_DIR/truststore.p12"
 
     # Set permissions
     chmod 644 "$NODE_DIR"/*.jks
+    chmod 600 "$NODE_DIR"/*.p12
 
     echo "✓ Generated certificates for $node"
 done
@@ -223,9 +242,11 @@ echo "==============================================="
 echo ""
 echo "Summary:"
 echo "  - Root CA: ca/ca-cert.pem"
-echo "  - Truststore: ca/truststore.jks"
-echo "  - NiFi node keystores: nifi-*/keystore.jks"
-echo "  - ZooKeeper node keystores: zookeeper-*/keystore.jks"
+echo "  - Truststore: ca/truststore.jks and ca/truststore.p12 (PKCS12)"
+echo "  - NiFi node keystores: nifi-*/keystore.p12 (PKCS12) and nifi-*/keystore.jks"
+echo "  - NiFi node truststores: nifi-*/truststore.p12 (PKCS12) and nifi-*/truststore.jks"
+echo "  - ZooKeeper node keystores: zookeeper-*/keystore.p12 and zookeeper-*/keystore.jks"
+echo "  - ZooKeeper node truststores: zookeeper-*/truststore.p12 and zookeeper-*/truststore.jks"
 echo ""
 echo "Passwords:"
 echo "  - Keystore password: $KEYSTORE_PASS"
