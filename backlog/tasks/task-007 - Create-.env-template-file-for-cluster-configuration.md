@@ -4,7 +4,7 @@ title: Create .env template file for cluster configuration
 status: Done
 assignee: []
 created_date: '2025-11-11 14:59'
-updated_date: '2025-11-11 15:55'
+updated_date: '2025-11-11 16:08'
 labels:
   - configuration
   - templates
@@ -90,4 +90,15 @@ Documentation Features:
 Total: 176 lines, 37 variables, 10 organized sections
 
 Location: templates/.env.template
+
+Port Strategy Update: Changed BASE_PORT from 59000 to 29000 and updated formula from 100-port ranges to 1000-port ranges per cluster. This provides better isolation and more available ports per cluster.
+
+Updated 146 port references across:
+- templates/.env.template (all port values)
+- templates/nifi.properties.template (example)
+- backlog/docs/doc-001 (62 references)
+- backlog/decisions/decision-001 (77 references)
+- backlog/tasks/task-009, task-015, task-016 (7 references)
+
+New allocation: Cluster 1: 30000-30999, Cluster 2: 31000-31999, etc.
 <!-- SECTION:NOTES:END -->
