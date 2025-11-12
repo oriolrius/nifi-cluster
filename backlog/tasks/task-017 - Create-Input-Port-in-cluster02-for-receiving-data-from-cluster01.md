@@ -1,10 +1,10 @@
 ---
 id: task-017
 title: Create Input Port in cluster02 for receiving data from cluster01
-status: In Progress
+status: To Do
 assignee: []
 created_date: '2025-11-12 04:33'
-updated_date: '2025-11-12 04:40'
+updated_date: '2025-11-12 04:41'
 labels:
   - site-to-site
   - cluster02
@@ -97,4 +97,35 @@ curl -k -u admin:changeme123456 \
   https://localhost:31443/nifi-api/flow/process-groups/root/input-ports \
   | jq '.inputPorts[] | {name: .component.name, state: .component.state}'
 ```
+
+## Current Status
+
+**Clusters are running but showing 'unhealthy' status:**
+```
+cluster01-nifi-1: Up 10 hours (unhealthy)
+cluster02-nifi-1: Up 10 hours (unhealthy)
+```
+
+**Authentication Issue:**
+- API returns 401 Unauthorized with basic auth
+- NiFi single-user auth requires token-based authentication
+- Cannot test S2S endpoints via curl without proper token
+
+**Implementation Approach:**
+This task requires **manual UI interaction**:
+1. Open https://localhost:31443/nifi in browser
+2. Login with admin/changeme123456
+3. Create Input Port at root canvas
+4. Enable 'Allow Remote Access'
+5. Start the port
+
+**Why Not Automated:**
+- MCP NiFi server doesn't exist in this project (mcp-servers/nifi/ directory not found)
+- NiFi REST API requires token authentication (not basic auth)
+- Tasks 017-020 are designed as manual UI workflows
+
+**Next Steps:**
+- User must perform manual UI configuration
+- OR: Build NiFi MCP server for programmatic access
+- OR: Implement token-based API authentication script
 <!-- SECTION:NOTES:END -->
