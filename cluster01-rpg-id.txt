@@ -1,0 +1,4 @@
+RPG_ID=7731de56-019a-1000-ffff-ffffb781b3eb
+CLUSTER01_URL=https://localhost:30443
+TARGET_URI=https://cluster02-nifi-1:8443/nifi
+CONNECTION_METHOD=inter-cluster-network
