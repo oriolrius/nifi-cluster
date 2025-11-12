@@ -21,10 +21,10 @@ Create a root-level Input Port in cluster02 that will receive data from cluster0
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Input Port named 'From-Cluster01-Request' created at root canvas in cluster02
+- [x] #1 Input Port named 'From-Cluster01-Request' created at root canvas in cluster02
 - [ ] #2 Port is in RUNNING state and visible in NiFi UI
-- [ ] #3 Port appears in cluster02's site-to-site endpoint: GET https://localhost:31443/nifi-api/site-to-site
-- [ ] #4 Port has access policy allowing 'receive data via site-to-site' for all nodes
+- [x] #3 Port appears in cluster02's site-to-site endpoint: GET https://localhost:31443/nifi-api/site-to-site
+- [x] #4 Port has access policy allowing 'receive data via site-to-site' for all nodes
 <!-- AC:END -->
 
 ## Implementation Notes
