@@ -1,10 +1,10 @@
 ---
 id: task-017
 title: Create Input Port in cluster02 for receiving data from cluster01
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2025-11-12 04:33'
-updated_date: '2025-11-12 04:33'
+updated_date: '2025-11-12 04:40'
 labels:
   - site-to-site
   - cluster02
