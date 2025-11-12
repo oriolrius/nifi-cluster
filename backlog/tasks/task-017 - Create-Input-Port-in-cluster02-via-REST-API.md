@@ -1,7 +1,7 @@
 ---
 id: task-017
 title: Create Input Port in cluster02 via REST API
-status: In Progress
+status: Done
 assignee: []
 created_date: '2025-11-12 04:33'
 updated_date: '2025-11-12 06:20'
@@ -22,7 +22,7 @@ Create a root-level Input Port in cluster02 that will receive data from cluster0
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Input Port named 'From-Cluster01-Request' created at root canvas in cluster02
-- [ ] #2 Port is in RUNNING state and visible in NiFi UI
+- [x] #2 Port is in RUNNING state and visible in NiFi UI
 - [x] #3 Port appears in cluster02's site-to-site endpoint: GET https://localhost:31443/nifi-api/site-to-site
 - [x] #4 Port has access policy allowing 'receive data via site-to-site' for all nodes
 <!-- AC:END -->
