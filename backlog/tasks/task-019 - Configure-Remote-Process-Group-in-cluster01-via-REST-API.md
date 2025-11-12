@@ -1,10 +1,10 @@
 ---
 id: task-019
 title: Configure Remote Process Group in cluster01 via REST API
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2025-11-12 04:33'
-updated_date: '2025-11-12 05:00'
+updated_date: '2025-11-12 06:38'
 labels:
   - site-to-site
   - cluster01
