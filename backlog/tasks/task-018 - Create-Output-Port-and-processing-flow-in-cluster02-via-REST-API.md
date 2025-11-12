@@ -1,7 +1,7 @@
 ---
 id: task-018
 title: Create Output Port and processing flow in cluster02 via REST API
-status: In Progress
+status: Done
 assignee: []
 created_date: '2025-11-12 04:33'
 updated_date: '2025-11-12 06:26'
@@ -21,11 +21,11 @@ Create a root-level Output Port in cluster02 that will send response data back t
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Output Port named 'To-Cluster01-Response' created at root canvas in cluster02
-- [ ] #2 Port is in RUNNING state
-- [ ] #3 Port appears in cluster02's site-to-site endpoint outputPorts list
-- [ ] #4 Port has access policy allowing 'send data via site-to-site'
-- [ ] #5 Internal flow connects Input Port → processing → Output Port
+- [x] #1 Output Port named 'To-Cluster01-Response' created at root canvas in cluster02
+- [x] #2 Port is in RUNNING state
+- [x] #3 Port appears in cluster02's site-to-site endpoint outputPorts list
+- [x] #4 Port has access policy allowing 'send data via site-to-site'
+- [x] #5 Internal flow connects Input Port → processing → Output Port
 <!-- AC:END -->
 
 ## Implementation Notes
