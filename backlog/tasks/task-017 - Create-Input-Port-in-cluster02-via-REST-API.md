@@ -1,10 +1,10 @@
 ---
 id: task-017
 title: Create Input Port in cluster02 via REST API
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2025-11-12 04:33'
-updated_date: '2025-11-12 04:58'
+updated_date: '2025-11-12 06:17'
 labels:
   - site-to-site
   - cluster02
