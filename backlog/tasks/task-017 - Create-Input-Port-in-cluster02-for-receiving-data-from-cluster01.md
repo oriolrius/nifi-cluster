@@ -4,7 +4,7 @@ title: Create Input Port in cluster02 for receiving data from cluster01
 status: To Do
 assignee: []
 created_date: '2025-11-12 04:33'
-updated_date: '2025-11-12 04:41'
+updated_date: '2025-11-12 04:44'
 labels:
   - site-to-site
   - cluster02
@@ -30,102 +30,189 @@ Create a root-level Input Port in cluster02 that will receive data from cluster0
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-## Implementation Steps
+## Prerequisites
 
-### 1. Access cluster02 NiFi UI
+**Verify cluster02 Site-to-Site Configuration:**
 ```bash
-# Open cluster02 in browser
-open https://localhost:31443/nifi
-# Login: admin / changeme123456
+grep -E 'nifi.remote.input|nifi.web.https.port' \
+  clusters/cluster02/conf/cluster02-nifi-1/nifi.properties
 ```
 
-### 2. Create Input Port at Root Canvas
-- Ensure you are at the root canvas (not inside any process group)
-- Drag 'Input Port' component from toolbar to canvas
-- Name it: 'From-Cluster01-Request'
-- Click 'ADD'
+Expected properties:
+- `nifi.remote.input.http.enabled=true`
+- `nifi.remote.input.secure=true`
+- `nifi.remote.input.socket.port=10000` (RAW protocol, not used)
+- `nifi.web.https.port=8443` (HTTPS protocol, used for S2S)
 
-### 3. Configure Input Port
-- Right-click the Input Port → Configure
-- Settings tab:
-  - Concurrent tasks: 1 (default)
-  - Keep 'Allow Remote Access' ENABLED (critical for S2S)
-- Comments: 'Receives data from cluster01 via Site-to-Site'
+**Manual Reference:** NiFi Administration Guide > System Properties > Site-to-Site Properties
 
-### 4. Start the Input Port
-- Right-click → Start
-- Verify status shows green 'Running' indicator
+## Implementation Steps (Manual UI)
 
-### 5. Verify S2S Availability
-Test that the port is exposed via Site-to-Site API:
+### Step 1: Access cluster02 Web UI
+
+1. Open browser (Chrome/Firefox recommended)
+2. Navigate to: `https://localhost:31443/nifi`
+3. Accept SSL certificate warning (self-signed CA)
+4. Login credentials:
+   - Username: `admin`
+   - Password: `changeme123456`
+
+### Step 2: Verify Root Canvas Level
+
+**CRITICAL:** Input Ports must be at root canvas level to be remotely accessible.
+
+1. Check breadcrumb trail at bottom of UI shows: **NiFi Flow** (not inside any Process Group)
+2. If inside a Process Group, click breadcrumb to navigate to root
+
+### Step 3: Create Input Port Component
+
+1. From top toolbar, locate the **Input Port** icon (blue circle with arrow pointing in)
+2. Click and drag to canvas
+3. **Add Port Dialog** appears:
+   - **Port Name:** `From-Cluster01-Request`
+   - **Allow remote access:** ☑ **CHECKED** (enabled by default for root-level ports)
+4. Click **ADD**
+
+### Step 4: Configure Input Port (Optional Settings)
+
+1. Right-click Input Port → **Configure**
+2. **SETTINGS Tab:**
+   - **Name:** `From-Cluster01-Request` (confirm)
+   - **Concurrent tasks:** `1` (default, increase for high throughput)
+   - **Comments:** `Receives data from cluster01 via Site-to-Site HTTPS protocol`
+3. Click **APPLY**
+
+**Note:** "Allow remote access" setting is NOT visible in Configure dialog for root-level ports (always enabled).
+
+### Step 5: Start Input Port
+
+1. Right-click Input Port → **Start**
+2. Verify status indicator changes:
+   - ⬤ **Red (stopped)** → ⬤ **Green (running)**
+3. Port should display: **IN: 0** (no data received yet)
+
+### Step 6: Verify Port ID (for API verification)
+
+1. Right-click Input Port → **View configuration**
+2. Note the **Port ID** (UUID format): e.g., `a1b2c3d4-5678-90ef-ghij-klmnopqrstuv`
+3. Keep this ID for API verification
+
+## Verification Methods
+
+### Method 1: Visual Verification (UI)
+
+✓ Input Port visible on root canvas
+✓ Port name: `From-Cluster01-Request`
+✓ Status: Green (running)
+✓ Located at root level (breadcrumb shows "NiFi Flow")
+
+### Method 2: Site-to-Site API Endpoint
+
+**Command** (requires token authentication - see note below):
 ```bash
-curl -k -u admin:changeme123456 https://localhost:31443/nifi-api/site-to-site | jq '.controller.inputPorts'
+# Get JWT token first (manual step via UI)
+# NiFi UI → User menu (top right) → Generate Token → Copy
+
+TOKEN="<paste-token-here>"
+
+curl -k -H "Authorization: Bearer $TOKEN" \
+  https://localhost:31443/nifi-api/site-to-site
 ```
 
-Expected output should include:
+**Expected Response Structure:**
 ```json
 {
-  "id": "<port-id>",
-  "name": "From-Cluster01-Request",
-  "type": "INPUT_PORT"
+  "revision": {...},
+  "controller": {
+    "id": "<controller-id>",
+    "name": "NiFi Flow",
+    "remoteSiteListeningPort": 8443,
+    "remoteSiteHttpListeningPort": 8443,
+    "siteToSiteSecure": true,
+    "inputPorts": [
+      {
+        "id": "<port-id>",
+        "name": "From-Cluster01-Request",
+        "type": "INPUT_PORT",
+        "comments": "Receives data from cluster01 via Site-to-Site HTTPS protocol"
+      }
+    ],
+    "outputPorts": []
+  }
 }
 ```
 
-### 6. Access Policy (if needed)
-If using authorization policies:
-- Access 'Policies' menu (top right)
-- Select policy: 'receive data via site-to-site'
-- Add users/groups as needed
-- Or use global 'retrieve site-to-site details' policy
+**Key Fields:**
+- `remoteSiteHttpListeningPort: 8443` - confirms HTTPS S2S enabled
+- `siteToSiteSecure: true` - confirms mutual TLS required
+- `inputPorts[].name` - must include your port name
 
-## Technical Details
-- **Port Level**: Must be at root canvas (Process Group ID = root)
-- **Remote Access**: Enabled by default for root-level ports
-- **Protocol**: HTTPS Site-to-Site (nifi.remote.input.http.enabled=true)
-- **Security**: Mutual TLS using shared CA certificate
-- **Concurrency**: Default 1, can increase for higher throughput
+### Method 3: Process Group API
 
-## Verification Commands
 ```bash
-# List all available S2S input ports
-curl -k -u admin:changeme123456 \
-  https://localhost:31443/nifi-api/site-to-site \
-  | jq '.controller.inputPorts[].name'
-
-# Check port status via API
-curl -k -u admin:changeme123456 \
-  https://localhost:31443/nifi-api/flow/process-groups/root/input-ports \
-  | jq '.inputPorts[] | {name: .component.name, state: .component.state}'
+curl -k -H "Authorization: Bearer $TOKEN" \
+  https://localhost:31443/nifi-api/flow/process-groups/root
 ```
 
-## Current Status
+Look for `inputPorts` array containing your port.
 
-**Clusters are running but showing 'unhealthy' status:**
+## Getting JWT Token (Manual)
+
+NiFi single-user authentication uses JWT tokens, not basic auth:
+
+1. In NiFi UI (cluster02)
+2. Click **User icon** (top right corner) → **admin**
+3. Click **Generate Token**
+4. Copy token to clipboard
+5. Token valid for 1 hour (configurable via `nifi.security.user.jws.key.rotation.period`)
+
+## Access Policies (Single-User Mode)
+
+In single-user mode, the `admin` user has all permissions by default:
+- ✓ retrieve site-to-site details
+- ✓ receive data via site-to-site (all input ports)
+- ✓ send data via site-to-site (all output ports)
+
+**No additional policy configuration needed** for this setup.
+
+## Security Notes
+
+**Mutual TLS Requirement:**
+Per NiFi Administration Guide: "Site-to-Site connections will always REQUIRE two way SSL as the nodes will use their configured keystore/truststore for authentication."
+
+**cluster02 Certificates:**
+- Keystore: `clusters/cluster02/conf/cluster02-nifi-1/keystore.p12`
+- Truststore: `clusters/cluster02/conf/cluster02-nifi-1/truststore.p12`
+- CA Certificate: `certs/ca/ca-cert.pem` (shared across all clusters)
+
+**Verification:**
+```bash
+# Verify truststore contains shared CA
+keytool -list -keystore clusters/cluster02/conf/cluster02-nifi-1/truststore.p12 \
+  -storepass changeme123456
 ```
-cluster01-nifi-1: Up 10 hours (unhealthy)
-cluster02-nifi-1: Up 10 hours (unhealthy)
-```
 
-**Authentication Issue:**
-- API returns 401 Unauthorized with basic auth
-- NiFi single-user auth requires token-based authentication
-- Cannot test S2S endpoints via curl without proper token
+## Expected Result
 
-**Implementation Approach:**
-This task requires **manual UI interaction**:
-1. Open https://localhost:31443/nifi in browser
-2. Login with admin/changeme123456
-3. Create Input Port at root canvas
-4. Enable 'Allow Remote Access'
-5. Start the port
+✅ **Success Indicators:**
+1. Input Port visible on cluster02 root canvas
+2. Port status: Green (running)
+3. Port appears in `GET /nifi-api/site-to-site` response
+4. Port ID retrievable via API
+5. Ready to receive data from cluster01 RPG
 
-**Why Not Automated:**
-- MCP NiFi server doesn't exist in this project (mcp-servers/nifi/ directory not found)
-- NiFi REST API requires token authentication (not basic auth)
-- Tasks 017-020 are designed as manual UI workflows
+## Common Issues
 
-**Next Steps:**
-- User must perform manual UI configuration
-- OR: Build NiFi MCP server for programmatic access
-- OR: Implement token-based API authentication script
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Port not in S2S endpoint | Created inside Process Group | Move to root canvas |
+| "Allow remote access" option missing | Port at root level (expected) | Option auto-enabled for root ports |
+| API returns 401 | Using basic auth | Use JWT token from UI |
+| Token expired | Token > 1 hour old | Generate new token |
+
+## Manual Reference
+
+- **NiFi User Guide** > Components > Input Port
+- **NiFi Administration Guide** > System Properties > Site-to-Site Properties
+- **NiFi REST API** > `/site-to-site` endpoint documentation
 <!-- SECTION:NOTES:END -->
