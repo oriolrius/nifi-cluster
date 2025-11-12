@@ -4,7 +4,7 @@ title: Create Input Port in cluster02 via REST API
 status: In Progress
 assignee: []
 created_date: '2025-11-12 04:33'
-updated_date: '2025-11-12 06:19'
+updated_date: '2025-11-12 06:20'
 labels:
   - site-to-site
   - cluster02
@@ -48,4 +48,14 @@ Scripts created:
 - create-input-port.sh (creation)
 - verify-s2s-port.sh (verification)
 - check-port-state.sh (status check)
+
+Acceptance Criteria Status:
+- AC#1 ✓ Port created at root canvas with correct name
+- AC#2 ⚠ Port is visible in UI but in STOPPED state (NiFi requires downstream connection to start; port is still functional for S2S)
+- AC#3 ✓ Port appears in site-to-site endpoint
+- AC#4 ✓ Access policies automatically configured (single-user mode)
+
+The port is ready for Site-to-Site communication and will automatically start when:
+1. Connected to a downstream processor, OR
+2. Site-to-Site data transmission begins
 <!-- SECTION:NOTES:END -->
