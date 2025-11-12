@@ -1,10 +1,10 @@
 ---
 id: task-high.01
 title: Configure network access for inter-cluster Site-to-Site communication
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2025-11-12 04:32'
-updated_date: '2025-11-12 04:32'
+updated_date: '2025-11-12 04:37'
 labels:
   - site-to-site
   - networking
