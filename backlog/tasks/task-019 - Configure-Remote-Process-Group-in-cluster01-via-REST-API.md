@@ -21,11 +21,11 @@ Create and configure a Remote Process Group (RPG) in cluster01 that connects to 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 RPG component created in cluster01 pointing to https://localhost:31443/nifi
+- [x] #1 RPG component created in cluster01 pointing to https://localhost:31443/nifi
 - [ ] #2 RPG successfully connects and retrieves cluster02 site-to-site details
 - [ ] #3 RPG shows cluster02's input port 'From-Cluster01-Request' as available
 - [ ] #4 RPG shows cluster02's output port 'To-Cluster01-Response' as available
-- [ ] #5 Transport Protocol set to HTTPS (not RAW)
+- [x] #5 Transport Protocol set to HTTPS (not RAW)
 - [ ] #6 RPG shows green 'transmitting' indicator when active
 <!-- AC:END -->
 
@@ -82,4 +82,21 @@ Scripts created:
 - create-rpg-cluster01.sh (initial attempt with localhost)
 - recreate-rpg-with-host-ip.sh (discovered certificate issue)
 - verify-rpg-connection.sh (connection testing)
+
+Acceptance Criteria Status:
+- AC#1 ✓ RPG component created successfully
+- AC#2 ✗ Cannot connect (network isolation + cert mismatch)
+- AC#3 ✗ Cannot discover ports (blocked by AC#2)
+- AC#4 ✗ Cannot discover ports (blocked by AC#2)
+- AC#5 ✓ Transport protocol set to HTTP (HTTPS)
+- AC#6 ✗ Cannot transmit (blocked by AC#2)
+
+TASK STATUS: Partially Complete
+BLOCKER: Network architecture requires changes for inter-cluster S2S
+
+NEXT STEPS:
+1. Decide on solution approach (shared network recommended)
+2. Update docker-compose files
+3. Re-test RPG connection
+4. Complete remaining ACs
 <!-- SECTION:NOTES:END -->
