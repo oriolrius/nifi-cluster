@@ -68,4 +68,32 @@ cluster01: [RPG Receive] → [LogAttribute] → [Terminate]
 - Attributes to Log Regex: `.*`
 
 **Connect:** RPG (To-Cluster01-Response port) → LogAttribute → Terminate
+
+## Verification
+
+**Check cluster01 logs:**
+```bash
+docker compose -f docker-compose-cluster01.yml logs -f nifi-1 | grep LogAttribute
+```
+
+Expected attributes:
+- `request.id`, `request.timestamp`, `source.cluster` (from cluster01)
+- `processed.by`, `processing.timestamp`, `response.status` (from cluster02)
+
+**Monitor RPG:**
+- Hover over RPG: shows "Sent: X / Received: X"
+- Both counters increment with each flowfile
+
+**Validation:**
+- [ ] Files created every 30 seconds
+- [ ] Files reach cluster02 Input Port
+- [ ] cluster02 adds metadata
+- [ ] Files return via cluster02 Output Port  
+- [ ] LogAttribute shows combined metadata
+- [ ] Round-trip time <1 second
+
+## Troubleshooting
+- No data to cluster02: Check RPG transmission enabled, cluster02 port RUNNING
+- No return data: Check cluster02 Output Port running, RPG output enabled
+- Data stuck: Check back-pressure, verify all processors RUNNING
 <!-- SECTION:NOTES:END -->
