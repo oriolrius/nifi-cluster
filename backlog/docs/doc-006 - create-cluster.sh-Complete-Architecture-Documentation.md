@@ -531,7 +531,7 @@ curl -k -s --cert clusters/cluster01/certs/cluster01.nifi-1/server-cert.pem \
 - `check-nodes.sh` - Check individual node status
 - `verify-s2s-port.sh` - Verify Site-to-Site endpoint
 - `lib/debug-api.sh` - Debug NiFi API connectivity
-- `full-node-status.sh` - Comprehensive node diagnostics
+- `lib/full-node-status.sh` - Comprehensive node diagnostics
 
 ### Management Commands
 

@@ -301,7 +301,7 @@ main() {
             ;;
         status)
             # Use the check-cluster.sh script
-            "${SCRIPT_DIR}/check-cluster.sh" "$@"
+            "${SCRIPT_DIR}/lib/check-cluster.sh" "$@"
             ;;
         start)
             cmd_start "$@"

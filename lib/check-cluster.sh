@@ -4,7 +4,7 @@
 #   If no cluster name provided, checks all available clusters
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/lib/cluster-utils.sh"
+source "${SCRIPT_DIR}/cluster-utils.sh"
 
 # Function to check a single node
 check_node() {
