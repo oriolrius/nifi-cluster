@@ -26,6 +26,7 @@ Commands:
   logs <cluster>    Follow logs for cluster (all nodes)
   wait <cluster>    Wait for cluster to be ready
   validate <cluster> Validate cluster configuration
+  test <cluster>    Run comprehensive cluster tests
 
 Options:
   -h, --help       Show this help message
@@ -45,6 +46,7 @@ Examples:
   $0 logs cluster01          # Follow logs for cluster01
   $0 wait cluster01          # Wait for cluster01 to be ready
   $0 validate cluster01      # Validate cluster01 configuration
+  $0 test cluster01          # Run comprehensive tests on cluster01
 
 EOF
 }
@@ -337,59 +339,16 @@ cmd_wait() {
 cmd_validate() {
     local cluster_name="$1"
 
-    if [ -z "$cluster_name" ]; then
-        echo -e "${RED}Error: Cluster name required${NC}"
-        return 1
-    fi
+    # Delegate to lib/validate.sh script
+    "${SCRIPT_DIR}/lib/validate.sh" "$cluster_name"
+}
 
-    echo -e "${BLUE}Validating cluster ${cluster_name}...${NC}"
-    echo ""
+# Test cluster
+cmd_test() {
+    local cluster_name="$1"
 
-    local errors=0
-
-    # Check docker-compose file
-    if ! cluster_exists "$cluster_name"; then
-        echo -e "${RED}✗ Docker compose file not found${NC}"
-        errors=$((errors + 1))
-    else
-        echo -e "${GREEN}✓ Docker compose file exists${NC}"
-    fi
-
-    # Check configuration directories
-    local cluster_num=$(get_cluster_num "$cluster_name")
-    local node_count=$(get_node_count "$cluster_name")
-
-    for i in $(seq 1 "$node_count"); do
-        local conf_dir="clusters/${cluster_name}/conf/${cluster_name}.nifi-${i}"
-        if [ -d "$conf_dir" ]; then
-            # Check required files
-            if [ -f "$conf_dir/nifi.properties" ]; then
-                echo -e "${GREEN}✓ Node ${i} nifi.properties exists${NC}"
-            else
-                echo -e "${RED}✗ Node ${i} nifi.properties missing${NC}"
-                errors=$((errors + 1))
-            fi
-
-            if [ -f "$conf_dir/keystore.p12" ] && [ -f "$conf_dir/truststore.p12" ]; then
-                echo -e "${GREEN}✓ Node ${i} certificates exist${NC}"
-            else
-                echo -e "${RED}✗ Node ${i} certificates missing${NC}"
-                errors=$((errors + 1))
-            fi
-        else
-            echo -e "${RED}✗ Node ${i} configuration directory missing${NC}"
-            errors=$((errors + 1))
-        fi
-    done
-
-    echo ""
-    if [ $errors -eq 0 ]; then
-        echo -e "${GREEN}✓ Validation passed${NC}"
-        return 0
-    else
-        echo -e "${RED}✗ Validation failed with ${errors} error(s)${NC}"
-        return 1
-    fi
+    # Delegate to lib/test.sh script
+    "${SCRIPT_DIR}/lib/test.sh" "$cluster_name"
 }
 
 # Main command dispatcher
@@ -436,6 +395,9 @@ main() {
             ;;
         validate)
             cmd_validate "$@"
+            ;;
+        test)
+            cmd_test "$@"
             ;;
         -h|--help|help)
             show_usage

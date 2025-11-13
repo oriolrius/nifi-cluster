@@ -1,12 +1,13 @@
 #!/bin/bash
-# Simplified comprehensive NiFi cluster testing - auto-detects all parameters
-# Usage: ./test <cluster_name>
+# Comprehensive NiFi cluster testing - auto-detects all parameters
+# This script is designed to be called from the cluster command
+# Usage: ./lib/test.sh <cluster_name>
 #
-# Example: ./test cluster01
+# Example: ./lib/test.sh cluster01
 
 set +e  # Don't exit on error - collect all test results
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${SCRIPT_DIR}/lib/cluster-utils.sh"
 
 # Counters
@@ -86,7 +87,7 @@ if ! cluster_exists "$CLUSTER_NAME"; then
     echo -e "${RED}Error: Cluster ${CLUSTER_NAME} not found${NC}"
     echo ""
     echo "Available clusters:"
-    ./cluster list
+    "${SCRIPT_DIR}/cluster" list
     exit 1
 fi
 
