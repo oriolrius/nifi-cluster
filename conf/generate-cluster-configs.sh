@@ -6,6 +6,9 @@
 #   - Creates configs for 3 nodes
 #   - Base port: 29000 + (1 * 1000) = 30000
 #   - External HTTPS ports: 30443, 30444, 30445
+#
+# IMPORTANT: This script reads DOMAIN from .env file and uses FQDNs for nifi.remote.input.host
+#            to ensure Site-to-Site communication works across clusters.
 
 set -e
 
@@ -18,6 +21,13 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Load DOMAIN from .env file if it exists
+DOMAIN=""
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    # Read DOMAIN from .env file (handle comments and whitespace)
+    DOMAIN=$(grep "^DOMAIN=" "$PROJECT_ROOT/.env" | cut -d '=' -f2 | tr -d ' \r\n' || echo "")
+fi
 
 # Validate input parameters
 if [ $# -lt 3 ]; then
@@ -98,7 +108,8 @@ for i in $(seq 1 "$NODE_COUNT"); do
     fi
 done
 for i in $(seq 1 "$NODE_COUNT"); do
-    PROXY_HOST_STRING="${PROXY_HOST_STRING},${CLUSTER_NAME}.nifi-${i}:8443"
+    node_https_port=$((HTTPS_BASE + i - 1))
+    PROXY_HOST_STRING="${PROXY_HOST_STRING},${CLUSTER_NAME}.nifi-${i}:${node_https_port}"
 done
 
 echo -e "${YELLOW}Starting configuration generation...${NC}"
@@ -108,6 +119,14 @@ echo ""
 for i in $(seq 1 "$NODE_COUNT"); do
     NODE_NAME="${CLUSTER_NAME}.nifi-${i}"    # Folder name (cluster-namespaced)
     NODE_HOSTNAME="${CLUSTER_NAME}.nifi-${i}" # Docker hostname (cluster-namespaced, matches docker-compose)
+
+    # Build FQDN for Site-to-Site if DOMAIN is set
+    if [ -n "$DOMAIN" ]; then
+        NODE_FQDN="${CLUSTER_NAME}.nifi-${i}.${DOMAIN}"
+    else
+        NODE_FQDN="${NODE_HOSTNAME}"
+    fi
+
     CONF_DIR="${OUTPUT_DIR}/${NODE_NAME}"
     HTTPS_PORT=$((HTTPS_BASE + i - 1))
     S2S_PORT=$((S2S_BASE + i - 1))
@@ -210,7 +229,7 @@ nifi.components.status.snapshot.frequency=1 min
 #####################
 # Site-to-Site      #
 #####################
-nifi.remote.input.host=${NODE_HOSTNAME}
+nifi.remote.input.host=${NODE_FQDN}
 nifi.remote.input.secure=true
 nifi.remote.input.socket.port=${S2S_PORT}
 nifi.remote.input.http.enabled=true
@@ -225,7 +244,7 @@ nifi.web.http.port=
 
 # HTTPS enabled
 nifi.web.https.host=0.0.0.0
-nifi.web.https.port=8443
+nifi.web.https.port=${HTTPS_PORT}
 nifi.web.https.network.interface.default=
 nifi.web.https.application.protocols=h2 http/1.1
 nifi.web.jetty.working.directory=./work/jetty

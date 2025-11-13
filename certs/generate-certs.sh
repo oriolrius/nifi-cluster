@@ -245,14 +245,15 @@ EOF
         -extensions v3_req \
         -extfile "$NODE_DIR/san.cnf"
 
-    # Create PKCS12 keystore
+    # Create certificate chain file (node cert + CA cert)
+    cat "$NODE_DIR/server-cert.pem" ca/ca-cert.pem > "$NODE_DIR/cert-chain.pem"
+
+    # Create PKCS12 keystore with full certificate chain
     openssl pkcs12 -export \
-        -in "$NODE_DIR/server-cert.pem" \
+        -in "$NODE_DIR/cert-chain.pem" \
         -inkey "$NODE_DIR/server-key.pem" \
         -out "$NODE_DIR/keystore.p12" \
         -name "$node" \
-        -CAfile ca/ca-cert.pem \
-        -caname root \
         -password "pass:$KEYSTORE_PASS"
 
     # Convert PKCS12 to JKS keystore
@@ -365,14 +366,15 @@ EOF
         -extensions v3_req \
         -extfile "$NODE_DIR/san.cnf"
 
-    # Create PKCS12 keystore
+    # Create certificate chain file (node cert + CA cert)
+    cat "$NODE_DIR/server-cert.pem" ca/ca-cert.pem > "$NODE_DIR/cert-chain.pem"
+
+    # Create PKCS12 keystore with full certificate chain
     openssl pkcs12 -export \
-        -in "$NODE_DIR/server-cert.pem" \
+        -in "$NODE_DIR/cert-chain.pem" \
         -inkey "$NODE_DIR/server-key.pem" \
         -out "$NODE_DIR/keystore.p12" \
         -name "$node" \
-        -CAfile ca/ca-cert.pem \
-        -caname root \
         -password "pass:$KEYSTORE_PASS"
 
     # Convert PKCS12 to JKS keystore

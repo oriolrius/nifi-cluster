@@ -113,9 +113,9 @@ PROXY_HOSTS=""
 for i in $(seq 1 "$NODE_COUNT"); do
     https_port=$((HTTPS_BASE + i - 1))
     if [ $i -eq 1 ]; then
-        PROXY_HOSTS="localhost:${https_port},127.0.0.1:${https_port},${CLUSTER_NAME}.nifi-${i}:8443"
+        PROXY_HOSTS="localhost:${https_port},127.0.0.1:${https_port},${CLUSTER_NAME}.nifi-${i}:${https_port}"
     else
-        PROXY_HOSTS="${PROXY_HOSTS},localhost:${https_port},127.0.0.1:${https_port},${CLUSTER_NAME}.nifi-${i}:8443"
+        PROXY_HOSTS="${PROXY_HOSTS},localhost:${https_port},127.0.0.1:${https_port},${CLUSTER_NAME}.nifi-${i}:${https_port}"
     fi
 done
 
@@ -237,8 +237,8 @@ EOF
 
     cat >> "$OUTPUT_FILE" << EOF
     ports:
-      - "${HTTPS_PORT}:8443"   # HTTPS UI
-      - "${S2S_PORT}:10000" # Site-to-Site
+      - "${HTTPS_PORT}:${HTTPS_PORT}"   # HTTPS UI
+      - "${S2S_PORT}:${S2S_PORT}" # Site-to-Site
     environment:
       # Cluster Configuration
       NIFI_CLUSTER_IS_NODE: "true"
@@ -248,7 +248,7 @@ EOF
       NIFI_ELECTION_MAX_WAIT: 1 min
 
       # Web Properties - HTTPS
-      NIFI_WEB_HTTPS_PORT: 8443
+      NIFI_WEB_HTTPS_PORT: ${HTTPS_PORT}
       NIFI_WEB_HTTPS_HOST: ${CLUSTER_NAME}.nifi-${i}
       NIFI_WEB_HTTPS_NETWORK_INTERFACE_DEFAULT: eth0
       NIFI_WEB_PROXY_HOST: ${NODE_PROXY_HOST}
@@ -276,12 +276,6 @@ EOF
     depends_on:
 $(echo -e "$ZK_DEPENDS")
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -k https://localhost:8443/nifi || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
 
 EOF
 done
