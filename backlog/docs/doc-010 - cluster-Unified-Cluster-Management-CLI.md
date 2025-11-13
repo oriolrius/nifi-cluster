@@ -25,11 +25,11 @@ The `cluster` script is a unified command-line interface that provides a consist
 cluster (Unified CLI Orchestrator)
 ├── Dependencies
 │   ├── lib/cluster-utils.sh (utility functions)
+│   ├── lib/check-cluster.sh (health checking)
 │   ├── create-cluster.sh (cluster creation)
 │   ├── delete-cluster.sh (cluster deletion)
 │   ├── validate (configuration validation)
 │   ├── test (runtime testing)
-│   ├── check-cluster.sh (health checking)
 │   ├── generate-docker-compose.sh (compose regeneration)
 │   └── Docker Compose (container orchestration)
 │
@@ -386,7 +386,7 @@ Performs quick health check:
 Cluster is healthy!
 ```
 
-**Delegates to:** `check-cluster.sh` (if available) or custom health logic
+**Delegates to:** `lib/check-cluster.sh` (if available) or custom health logic
 
 **Exit Codes:**
 - 0 - Healthy
@@ -700,7 +700,7 @@ Quick health check (faster than `test`, less comprehensive than `health`)
 - Containers running
 - Basic connectivity
 
-**Delegates to:** `check-cluster.sh` or custom logic
+**Delegates to:** `lib/check-cluster.sh` or custom logic
 
 **Exit Codes:**
 - 0 - Basic health OK
@@ -1112,12 +1112,12 @@ vim .env
 .
 ├── cluster                          # Main CLI script (this)
 ├── lib/
-│   └── cluster-utils.sh            # Utility functions
+│   ├── cluster-utils.sh            # Utility functions
+│   └── check-cluster.sh            # Health checking
 ├── create-cluster.sh               # Cluster creation
 ├── delete-cluster.sh               # Cluster deletion
 ├── validate                        # Configuration validation
 ├── test                            # Runtime testing
-├── check-cluster.sh                # Health checking
 ├── generate-docker-compose.sh      # Compose generation
 └── docker-compose-cluster*.yml     # Generated compose files
 ```

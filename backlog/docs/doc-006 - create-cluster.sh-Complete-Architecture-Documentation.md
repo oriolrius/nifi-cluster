@@ -3,6 +3,7 @@ id: doc-006
 title: create-cluster.sh - Complete Architecture Documentation
 type: other
 created_date: '2025-11-13 14:07'
+updated_date: '2025-11-13 15:00'
 ---
 # create-cluster.sh - Complete Architecture Documentation
 
@@ -525,11 +526,11 @@ curl -k -s --cert clusters/cluster01/certs/cluster01.nifi-1/server-cert.pem \
 ## Related Scripts
 
 ### Utility Scripts (not called by create-cluster.sh)
-- `check-cluster.sh` - Check cluster health and status
+- `lib/check-cluster.sh` - Check cluster health and status
 - `delete-cluster.sh` - Remove cluster and clean up resources
 - `check-nodes.sh` - Check individual node status
 - `verify-s2s-port.sh` - Verify Site-to-Site endpoint
-- `debug-api.sh` - Debug NiFi API connectivity
+- `lib/debug-api.sh` - Debug NiFi API connectivity
 - `full-node-status.sh` - Comprehensive node diagnostics
 
 ### Management Commands

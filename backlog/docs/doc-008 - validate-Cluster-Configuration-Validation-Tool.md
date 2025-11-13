@@ -811,7 +811,7 @@ validate-cluster:
 Use these complementary tools:
 - `./cluster wait <CLUSTER_NAME>` - Wait for cluster to be ready
 - `./test <CLUSTER_NAME>` - Test runtime connectivity
-- `./check-cluster.sh <CLUSTER_NAME>` - Check running cluster health
+- `./lib/check-cluster.sh <CLUSTER_NAME>` - Check running cluster health
 
 ## Best Practices
 

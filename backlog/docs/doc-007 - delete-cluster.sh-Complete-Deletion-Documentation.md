@@ -620,7 +620,7 @@ docker compose down --volumes
 docker compose -f docker-compose-cluster01.yml up -d
 
 # 3. Check cluster status
-./check-cluster.sh cluster01
+./lib/check-cluster.sh cluster01
 
 # 4. Stop cluster temporarily
 docker compose -f docker-compose-cluster01.yml down
