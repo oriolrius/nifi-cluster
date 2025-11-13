@@ -15,6 +15,7 @@ ${BLUE}╚═══════════════════════�
 Usage: $0 <command> [cluster_name] [options]
 
 Commands:
+  create <cluster> [nodes]  Create a new cluster (default: 3 nodes)
   list              List all available clusters
   info <cluster>    Show detailed cluster information
   status [cluster]  Show cluster and node status (all clusters if not specified)
@@ -29,6 +30,8 @@ Options:
   -h, --help       Show this help message
 
 Examples:
+  $0 create cluster01        # Create cluster01 with 3 nodes (default)
+  $0 create production05 5   # Create production05 with 5 nodes
   $0 list                    # List all clusters
   $0 info cluster01          # Show cluster01 details
   $0 status                  # Check all clusters
@@ -42,6 +45,89 @@ Examples:
 EOF
 }
 
+# Create a new cluster
+cmd_create() {
+    local cluster_name="$1"
+    local node_count="${2:-3}"  # Default to 3 nodes
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        echo "Usage: $0 create <cluster_name> [node_count]"
+        echo ""
+        echo "Examples:"
+        echo "  $0 create cluster01        # Creates cluster01 with 3 nodes"
+        echo "  $0 create production05 5   # Creates production05 with 5 nodes"
+        return 1
+    fi
+
+    # Validate cluster name pattern: [a-zA-Z]+[0-9]{2}
+    if ! [[ "$cluster_name" =~ ^[a-zA-Z]+[0-9]{2}$ ]]; then
+        echo -e "${RED}Error: Invalid cluster name pattern${NC}"
+        echo "Cluster name must match pattern: [text][two-digits]"
+        echo ""
+        echo "Valid examples:"
+        echo "  - cluster01, cluster02, ..., cluster10"
+        echo "  - production01, production05, production10"
+        echo "  - test01, staging02, dev03"
+        echo ""
+        echo "Invalid examples:"
+        echo "  - cluster1 (only one digit)"
+        echo "  - cluster011 (three digits)"
+        echo "  - cluster_01 (contains underscore)"
+        echo "  - 01cluster (starts with digits)"
+        return 1
+    fi
+
+    # Extract cluster number from last 2 digits
+    local cluster_num="${cluster_name: -2}"
+    # Remove leading zero if present (01 -> 1, 05 -> 5, 10 -> 10)
+    cluster_num=$((10#$cluster_num))
+
+    # Validate cluster number is between 1 and 10
+    if [ "$cluster_num" -lt 1 ] || [ "$cluster_num" -gt 10 ]; then
+        echo -e "${RED}Error: Cluster number must be between 01 and 10${NC}"
+        echo "Extracted cluster number: ${cluster_num}"
+        echo ""
+        echo "Valid examples:"
+        echo "  - cluster01 (cluster #1)"
+        echo "  - cluster05 (cluster #5)"
+        echo "  - cluster10 (cluster #10)"
+        echo ""
+        echo "Invalid examples:"
+        echo "  - cluster00 (cluster #0, must be >= 1)"
+        echo "  - cluster11 (cluster #11, must be <= 10)"
+        return 1
+    fi
+
+    # Validate node count
+    if ! [[ "$node_count" =~ ^[0-9]+$ ]] || [ "$node_count" -lt 1 ]; then
+        echo -e "${RED}Error: Node count must be a positive integer${NC}"
+        return 1
+    fi
+
+    # Check if cluster already exists
+    if cluster_exists "$cluster_name"; then
+        echo -e "${RED}Error: Cluster ${cluster_name} already exists${NC}"
+        echo ""
+        echo "To recreate the cluster:"
+        echo "  1. Stop and remove the existing cluster:"
+        echo "     $0 stop ${cluster_name}"
+        echo "     docker compose -f docker-compose-${cluster_name}.yml down -v"
+        echo "     rm -rf clusters/${cluster_name}"
+        echo "     rm docker-compose-${cluster_name}.yml"
+        echo "  2. Run create command again"
+        return 1
+    fi
+
+    echo -e "${BLUE}Creating cluster ${cluster_name}...${NC}"
+    echo "  Cluster Number: ${cluster_num}"
+    echo "  Node Count:     ${node_count}"
+    echo ""
+
+    # Call the create-cluster.sh script
+    "${SCRIPT_DIR}/lib/create-cluster.sh" "$cluster_name" "$cluster_num" "$node_count"
+}
+
 # List all clusters
 cmd_list() {
     local clusters=($(get_all_clusters))
@@ -50,7 +136,7 @@ cmd_list() {
         echo -e "${YELLOW}No clusters found.${NC}"
         echo ""
         echo "Create a cluster with:"
-        echo "  ./create-cluster.sh cluster01 1 3"
+        echo "  $0 create cluster01"
         return 0
     fi
 
@@ -293,6 +379,9 @@ main() {
     shift
 
     case "$command" in
+        create)
+            cmd_create "$@"
+            ;;
         list)
             cmd_list
             ;;

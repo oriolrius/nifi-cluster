@@ -6,7 +6,7 @@ Production-ready multi-cluster Apache NiFi deployment with complete isolation, a
 
 ```bash
 # Create first cluster (cluster01, 3 nodes, on ports 30xxx)
-./create-cluster.sh cluster01 1 3
+./cluster create cluster01
 
 # Start cluster01
 docker compose -f docker-compose-cluster01.yml up -d
@@ -108,7 +108,12 @@ nifi-cluster/
 │   ├── docs/                        # Design documents
 │   └── tasks/                       # Task tracking
 │
-├── create-cluster.sh                # Cluster creation script
+├── cluster                          # Cluster management wrapper CLI
+├── lib/                             # Library scripts
+│   ├── create-cluster.sh            # Cluster creation implementation
+│   ├── check-cluster.sh             # Cluster status checking
+│   ├── cluster-utils.sh             # Shared utility functions
+│   └── generate-docker-compose.sh   # Docker Compose file generator
 ├── delete-cluster.sh                # Cluster deletion script
 ├── test                             # Comprehensive cluster testing (auto-detects parameters)
 ├── validate                         # Configuration validation (auto-detects parameters)
@@ -148,25 +153,48 @@ BASE_PORT = 29000 + (CLUSTER_NUM × 1000)
 
 ## Scripts
 
-### create-cluster.sh
+### cluster (Management CLI)
 
-Creates a complete cluster configuration.
+Unified interface for managing NiFi clusters with simplified syntax.
 
 ```bash
-./create-cluster.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
+./cluster <command> [cluster_name] [options]
 ```
 
-**Example**:
+**Common Commands**:
 ```bash
-./create-cluster.sh cluster01 1 3
+# Create a cluster (3 nodes by default, cluster number extracted from name)
+./cluster create cluster01           # Creates cluster01 with 3 nodes on ports 30xxx
+./cluster create production05 5      # Creates production05 with 5 nodes on ports 34xxx
+
+# List all clusters
+./cluster list
+
+# Cluster management
+./cluster start cluster01
+./cluster stop cluster01
+./cluster restart cluster01
+./cluster logs cluster01
+./cluster status cluster01
+./cluster info cluster01
+./cluster validate cluster01
+./cluster wait cluster01
 ```
 
-**What it does**:
-1. Validates prerequisites
-2. Creates volume directories
-3. Generates SSL/TLS certificates
-4. Generates NiFi configuration files
-5. Creates `docker-compose-<CLUSTER_NAME>.yml`
+**Naming Convention**:
+- Cluster names must match pattern: `[text][two-digits]`
+- The two digits (01-10) determine the cluster number and port allocation
+- Examples: `cluster01`, `cluster05`, `production10`, `test03`
+- Invalid: `cluster1` (one digit), `cluster11` (>10), `cluster_01` (underscore)
+
+**What `create` does**:
+1. Validates cluster name pattern (must end with 01-10)
+2. Extracts cluster number from last 2 digits
+3. Validates prerequisites
+4. Creates volume directories
+5. Generates SSL/TLS certificates
+6. Generates NiFi configuration files
+7. Creates `docker-compose-<CLUSTER_NAME>.yml`
 
 ### test
 
@@ -251,7 +279,7 @@ Safely deletes a cluster including containers, networks, and data.
 
 ```bash
 # 1. Create cluster
-./create-cluster.sh cluster01 1 3
+./cluster create cluster01 3
 
 # 2. Validate
 ./validate cluster01
@@ -276,11 +304,11 @@ docker compose -f docker-compose-cluster01.yml down
 
 ```bash
 # Create cluster01
-./create-cluster.sh cluster01 1 3
+./cluster create cluster01 3
 docker compose -f docker-compose-cluster01.yml up -d
 
 # Create cluster02
-./create-cluster.sh cluster02 2 3
+./cluster create cluster02 3
 docker compose -f docker-compose-cluster02.yml up -d
 
 # Both running simultaneously
@@ -301,13 +329,13 @@ docker compose -f docker-compose-cluster02.yml restart
 
 ```bash
 # Single-node cluster
-./create-cluster.sh cluster03 3 1
+./cluster create cluster03 1
 
 # Two-node cluster
-./create-cluster.sh cluster04 4 2
+./cluster create cluster04 2
 
 # Five-node cluster
-./create-cluster.sh cluster05 5 5
+./cluster create cluster05 5
 ```
 
 ## Environment Variables
@@ -354,7 +382,7 @@ lsof -i :30443
 ./validate cluster01
 
 # Use different cluster number
-./create-cluster.sh cluster01 2 3  # Uses ports 31xxx
+./cluster create cluster01 3  # Uses ports 31xxx
 ```
 
 ### Certificate Issues
@@ -364,7 +392,7 @@ lsof -i :30443
 openssl x509 -in certs/ca/ca-cert.pem -text -noout
 
 # Regenerate cluster certificates (uses existing shared CA)
-./create-cluster.sh cluster01 1 3
+./cluster create cluster01 3
 ```
 
 ### Node Not Joining Cluster
@@ -439,7 +467,7 @@ All clusters share the same CA, enabling Site-to-Site connections between cluste
 
 ```bash
 # Recreate with more nodes
-./create-cluster.sh cluster01 1 5  # Now 5 nodes
+./cluster create cluster01 5  # Now 5 nodes
 docker compose -f docker-compose-cluster01.yml down
 docker compose -f docker-compose-cluster01.yml up -d
 ```
@@ -455,7 +483,7 @@ docker compose -f docker-compose-cluster01.yml up -d
 
 ```bash
 # Create cluster
-./create-cluster.sh cluster01 1 3
+./cluster create cluster01 3
 
 # Validate
 ./validate cluster01
