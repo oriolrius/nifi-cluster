@@ -22,6 +22,7 @@ Commands:
   start <cluster>   Start a cluster
   stop <cluster>    Stop a cluster
   restart <cluster> Restart a cluster
+  delete <cluster> [--force]  Delete a cluster (removes everything)
   logs <cluster>    Follow logs for cluster (all nodes)
   wait <cluster>    Wait for cluster to be ready
   validate <cluster> Validate cluster configuration
@@ -38,6 +39,9 @@ Examples:
   $0 status cluster01        # Check specific cluster
   $0 start cluster01         # Start cluster01
   $0 stop cluster02          # Stop cluster02
+  $0 restart cluster01       # Restart cluster01
+  $0 delete cluster01        # Delete cluster01 (with confirmation)
+  $0 delete cluster02 --force  # Delete cluster02 (no confirmation)
   $0 logs cluster01          # Follow logs for cluster01
   $0 wait cluster01          # Wait for cluster01 to be ready
   $0 validate cluster01      # Validate cluster01 configuration
@@ -264,6 +268,26 @@ cmd_stop() {
     echo -e "${GREEN}✓ Cluster stopped${NC}"
 }
 
+# Delete cluster
+cmd_delete() {
+    local cluster_name="$1"
+    shift  # Remove cluster name from arguments to pass remaining flags
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        echo "Usage: $0 delete <cluster_name> [--force]"
+        return 1
+    fi
+
+    if ! cluster_exists "$cluster_name"; then
+        echo -e "${RED}Error: Cluster ${cluster_name} not found${NC}"
+        return 1
+    fi
+
+    # Call the delete-cluster.sh script with all remaining arguments
+    "${SCRIPT_DIR}/lib/delete-cluster.sh" "$cluster_name" "$@"
+}
+
 # Restart cluster
 cmd_restart() {
     local cluster_name="$1"
@@ -400,6 +424,9 @@ main() {
             ;;
         restart)
             cmd_restart "$@"
+            ;;
+        delete)
+            cmd_delete "$@"
             ;;
         logs)
             cmd_logs "$@"

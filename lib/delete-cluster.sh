@@ -7,7 +7,8 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Script directory - parent directory since script is in lib/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Color codes
 RED='\033[0;31m'
@@ -92,10 +93,12 @@ if [[ "$2" == "--force" ]] || [[ "$2" == "-f" ]]; then
     FORCE_DELETE=true
 fi
 
-# Validate cluster name format
-if [[ ! "$CLUSTER_NAME" =~ ^cluster[0-9]{2}$ ]]; then
+# Validate cluster name format - matches [text][01-10] pattern from cluster CLI
+if [[ ! "$CLUSTER_NAME" =~ ^[a-zA-Z]+[0-9]{2}$ ]]; then
     print_error "Invalid cluster name format"
-    print_info "Cluster name must follow pattern: clusterXX (e.g., cluster01, cluster02)"
+    print_info "Cluster name must follow pattern: [text][01-10]"
+    print_info "Valid examples: cluster01, production05, test03"
+    print_info "Invalid examples: cluster1 (one digit), cluster11 (>10), cluster_01 (underscore)"
     exit 1
 fi
 
