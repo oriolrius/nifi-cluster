@@ -60,8 +60,8 @@ Tests Performed:
   5. Backend API access
   6. Cluster status verification
   7. ZooKeeper health check
-  8. SSL/TLS certificate validation
-  9. Flow replication test
+  8. SSL/TLS certificate validation (openssl)
+  9. Flow replication test (create, verify, cleanup)
 
 EOF
     exit 0
@@ -299,6 +299,149 @@ for i in $(seq 1 "$NODE_COUNT"); do
         print_fail "ZooKeeper-$i not running"
     fi
 done
+
+# Test 8: SSL Certificate Validation
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 8. SSL/TLS Certificate Validation${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+for i in $(seq 1 "$NODE_COUNT"); do
+    PORT=$((HTTPS_BASE + i - 1))
+    print_test "Testing SSL handshake on Node $i..."
+
+    # Test SSL connection with CA certificate
+    if curl --cacert "$CA_CERT" -s -o /dev/null https://localhost:$PORT/nifi/ 2>/dev/null; then
+        print_pass "SSL/TLS handshake successful"
+    else
+        print_fail "SSL/TLS handshake failed"
+    fi
+
+    # Verify certificate details
+    if command -v openssl &> /dev/null; then
+        CERT_INFO=$(echo | openssl s_client -connect localhost:$PORT -CAfile "$CA_CERT" 2>/dev/null | openssl x509 -noout -subject -issuer 2>/dev/null)
+
+        if [ -n "$CERT_INFO" ]; then
+            print_pass "Certificate validated"
+        else
+            print_fail "Could not retrieve certificate information"
+        fi
+    else
+        print_pass "SSL connection verified (openssl not available for details)"
+    fi
+done
+
+# Test 9: Flow Replication
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 9. Flow Replication Test${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+print_test "Creating test processor on Node 1..."
+
+# Get token for Node 1
+PORT=$HTTPS_BASE
+TOKEN="$NODE_1_TOKEN"
+
+if [ -z "$TOKEN" ]; then
+    print_fail "No token available for Node 1"
+else
+    # Get root process group ID
+    ROOT_PG=$(curl --cacert "$CA_CERT" -s \
+        -H "Authorization: Bearer $TOKEN" \
+        https://localhost:$PORT/nifi-api/flow/process-groups/root 2>/dev/null | \
+        jq -r '.processGroupFlow.id')
+
+    if [ -z "$ROOT_PG" ] || [ "$ROOT_PG" == "null" ]; then
+        print_fail "Could not get root process group ID"
+    else
+        # Create a test processor with unique name
+        TIMESTAMP=$(date +%s)
+        PROCESSOR_NAME="ClusterReplicationTest-$TIMESTAMP"
+
+        RESPONSE=$(curl --cacert "$CA_CERT" -s -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            https://localhost:$PORT/nifi-api/process-groups/$ROOT_PG/processors \
+            -d "{
+                \"revision\": {\"version\": 0},
+                \"component\": {
+                    \"type\": \"org.apache.nifi.processors.standard.GenerateFlowFile\",
+                    \"name\": \"$PROCESSOR_NAME\",
+                    \"position\": {\"x\": 300, \"y\": 300},
+                    \"config\": {
+                        \"schedulingPeriod\": \"60 sec\",
+                        \"autoTerminatedRelationships\": [\"success\"],
+                        \"properties\": {
+                            \"File Size\": \"1KB\",
+                            \"Batch Size\": \"1\"
+                        }
+                    }
+                }
+            }" 2>/dev/null)
+
+        PROCESSOR_ID=$(echo "$RESPONSE" | jq -r '.id')
+
+        if [ -n "$PROCESSOR_ID" ] && [ "$PROCESSOR_ID" != "null" ]; then
+            print_pass "Test processor created: $PROCESSOR_NAME"
+            print_info "Processor ID: $PROCESSOR_ID"
+
+            # Wait for replication
+            print_info "Waiting 5 seconds for cluster replication..."
+            sleep 5
+
+            # Check replication on all nodes
+            print_test "Verifying flow replication across all nodes..."
+
+            for i in $(seq 1 "$NODE_COUNT"); do
+                PORT=$((HTTPS_BASE + i - 1))
+                TOKEN_VAR="NODE_${i}_TOKEN"
+                TOKEN="${!TOKEN_VAR}"
+
+                if [ -z "$TOKEN" ]; then
+                    print_fail "No token for Node $i"
+                    continue
+                fi
+
+                # Check if processor exists on this node
+                FOUND=$(curl --cacert "$CA_CERT" -s \
+                    -H "Authorization: Bearer $TOKEN" \
+                    https://localhost:$PORT/nifi-api/flow/process-groups/$ROOT_PG 2>/dev/null | \
+                    jq -r ".processGroupFlow.flow.processors[] | select(.component.name==\"$PROCESSOR_NAME\") | .id")
+
+                if [ -n "$FOUND" ] && [ "$FOUND" != "null" ]; then
+                    print_pass "Node $i: Processor replicated successfully"
+                else
+                    print_fail "Node $i: Processor NOT found (replication failed)"
+                fi
+            done
+
+            # Cleanup: Delete the test processor
+            print_test "Cleaning up test processor..."
+
+            # Get current version
+            PORT=$HTTPS_BASE
+            TOKEN="$NODE_1_TOKEN"
+            CURRENT_VERSION=$(curl --cacert "$CA_CERT" -s \
+                -H "Authorization: Bearer $TOKEN" \
+                https://localhost:$PORT/nifi-api/processors/$PROCESSOR_ID 2>/dev/null | \
+                jq -r '.revision.version')
+
+            if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" != "null" ]; then
+                curl --cacert "$CA_CERT" -s -X DELETE \
+                    -H "Authorization: Bearer $TOKEN" \
+                    "https://localhost:$PORT/nifi-api/processors/$PROCESSOR_ID?version=$CURRENT_VERSION" \
+                    > /dev/null 2>&1
+
+                print_info "Test processor deleted"
+            fi
+        else
+            print_fail "Failed to create test processor"
+        fi
+    fi
+fi
 
 # Summary
 echo ""

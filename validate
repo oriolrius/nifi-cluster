@@ -61,10 +61,10 @@ Validations Performed:
   1. Directory structure
   2. Certificate chain
   3. Configuration files
-  4. Node addresses in nifi.properties
+  4. Node addresses & remote input hosts
   5. ZooKeeper configuration
-  6. Docker Compose file syntax
-  7. Port conflicts
+  6. Docker Compose file & service count
+  7. Port conflicts & availability
 
 EOF
     exit 0
@@ -239,10 +239,57 @@ for i in $(seq 1 "$NODE_COUNT"); do
     fi
 done
 
-# 5. Docker Compose Validation
+# Check remote input host
+for i in $(seq 1 "$NODE_COUNT"); do
+    print_check "RMT$i" "Checking ${CLUSTER_NAME}.nifi-$i remote input host"
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" ]; then
+        REMOTE_HOST=$(grep "^nifi.remote.input.host=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
+        EXPECTED_HOST="${CLUSTER_NAME}.nifi-$i"
+        if [ "$REMOTE_HOST" == "$EXPECTED_HOST" ]; then
+            print_pass
+        else
+            print_fail "Expected '$EXPECTED_HOST' but found '$REMOTE_HOST'"
+        fi
+    else
+        print_fail "nifi.properties not found"
+    fi
+done
+
+# 5. ZooKeeper Configuration Validation
 echo ""
 echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
-echo -e "${CYAN} 5. Docker Compose Validation${NC}"
+echo -e "${CYAN} 5. ZooKeeper Configuration Validation${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+# Build expected ZK connect string
+EXPECTED_ZK=""
+for i in $(seq 1 "$NODE_COUNT"); do
+    if [ $i -eq 1 ]; then
+        EXPECTED_ZK="${CLUSTER_NAME}.zookeeper-${i}:2181"
+    else
+        EXPECTED_ZK="${EXPECTED_ZK},${CLUSTER_NAME}.zookeeper-${i}:2181"
+    fi
+done
+
+for i in $(seq 1 "$NODE_COUNT"); do
+    print_check "ZKC$i" "Checking ${CLUSTER_NAME}.nifi-$i ZooKeeper connect string"
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" ]; then
+        ZK_CONNECT=$(grep "^nifi.zookeeper.connect.string=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
+        if [ "$ZK_CONNECT" == "$EXPECTED_ZK" ]; then
+            print_pass
+        else
+            print_fail "Expected '$EXPECTED_ZK' but found '$ZK_CONNECT'"
+        fi
+    else
+        print_fail "nifi.properties not found"
+    fi
+done
+
+# 6. Docker Compose Validation
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 6. Docker Compose Validation${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -262,6 +309,67 @@ if [ -f "$COMPOSE_FILE" ]; then
     fi
 else
     print_fail "docker-compose-${CLUSTER_NAME}.yml not found"
+fi
+
+# Check service count
+print_check "SVC" "Checking service count in compose file"
+if [ -f "$COMPOSE_FILE" ]; then
+    NIFI_SERVICES=$(grep -c "container_name:.*nifi-" "$COMPOSE_FILE" || echo "0")
+    if [ "$NIFI_SERVICES" -eq "$NODE_COUNT" ]; then
+        print_pass
+    else
+        print_fail "Expected $NODE_COUNT NiFi services, found $NIFI_SERVICES"
+    fi
+fi
+
+# 7. Port Conflict Check
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 7. Port Conflict Check${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+if [ -f "$COMPOSE_FILE" ]; then
+    # Extract all port mappings
+    PORTS=$(grep -E '^\s+- "[0-9]+:[0-9]+"' "$COMPOSE_FILE" | sed 's/.*"\([0-9]*\):.*/\1/' | sort)
+
+    print_check "DUP" "Checking for duplicate port mappings"
+    DUPLICATES=$(echo "$PORTS" | uniq -d)
+    if [ -z "$DUPLICATES" ]; then
+        print_pass
+    else
+        print_fail "Duplicate ports found: $(echo $DUPLICATES | tr '\n' ' ')"
+    fi
+
+    # Check if ports are in use (only if not running in container)
+    if [ ! -f "/.dockerenv" ]; then
+        print_check "USE" "Checking if ports are available"
+        PORTS_IN_USE=""
+
+        for PORT in $PORTS; do
+            if command -v lsof &> /dev/null; then
+                if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+                    PORTS_IN_USE="$PORTS_IN_USE $PORT"
+                fi
+            elif command -v ss &> /dev/null; then
+                if ss -tlnH | grep -q ":$PORT "; then
+                    PORTS_IN_USE="$PORTS_IN_USE $PORT"
+                fi
+            elif command -v netstat &> /dev/null; then
+                if netstat -tln | grep -q ":$PORT "; then
+                    PORTS_IN_USE="$PORTS_IN_USE $PORT"
+                fi
+            fi
+        done
+
+        if [ -z "$PORTS_IN_USE" ]; then
+            print_pass
+        else
+            print_warning "Ports already in use:$PORTS_IN_USE (may conflict if not from this cluster)"
+        fi
+    else
+        print_warning "Running in container - skipping port availability check"
+    fi
 fi
 
 # Summary
