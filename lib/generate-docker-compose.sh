@@ -9,14 +9,11 @@
 
 set -e
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
 # Script directory - parent directory since script is in lib/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Source cluster utilities for color codes with TTY detection
+source "${SCRIPT_DIR}/lib/cluster-utils.sh"
 
 # Load DOMAIN from .env file if it exists
 DOMAIN=""

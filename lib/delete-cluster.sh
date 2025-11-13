@@ -10,13 +10,8 @@ set -e
 # Script directory - parent directory since script is in lib/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# Source cluster utilities for color codes with TTY detection
+source "${SCRIPT_DIR}/lib/cluster-utils.sh"
 
 # Helper functions
 print_header() {
