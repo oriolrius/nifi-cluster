@@ -110,8 +110,8 @@ nifi-cluster/
 │
 ├── create-cluster.sh                # Cluster creation script
 ├── delete-cluster.sh                # Cluster deletion script
-├── test-cluster.sh                  # Cluster testing script
-├── validate-cluster.sh              # Configuration validation
+├── test                             # Comprehensive cluster testing (auto-detects parameters)
+├── validate                         # Configuration validation (auto-detects parameters)
 ├── generate-docker-compose.sh       # Compose file generator
 │
 ├── docker-compose-cluster01.yml     # Cluster01 compose file
@@ -168,49 +168,57 @@ Creates a complete cluster configuration.
 4. Generates NiFi configuration files
 5. Creates `docker-compose-<CLUSTER_NAME>.yml`
 
-### test-cluster.sh
+### test
 
-Runs comprehensive cluster tests.
+Runs comprehensive cluster tests with automatic parameter detection.
 
 ```bash
-./test-cluster.sh <CLUSTER_NAME> <NODE_COUNT> <BASE_PORT>
+./test <CLUSTER_NAME>
 ```
 
 **Example**:
 ```bash
-./test-cluster.sh cluster01 3 30443
+./test cluster01          # Auto-detects: 3 nodes, ports 30xxx
+./test cluster02          # Auto-detects: 3 nodes, ports 31xxx
 ```
 
-**Tests**:
-- Prerequisites check
-- Container status
-- Web UI access
-- Authentication (JWT tokens)
-- Backend API
-- Cluster status
-- ZooKeeper health
-- SSL/TLS certificates
-- Flow replication
+**9 Comprehensive Tests**:
+1. Prerequisites check (curl, jq, docker, CA certificates)
+2. Container status verification
+3. Web UI access (HTTPS with CA validation)
+4. Authentication & JWT token generation
+5. Backend API access and cluster summary
+6. Cluster status verification (all nodes connected)
+7. ZooKeeper health check
+8. SSL/TLS certificate validation (openssl)
+9. Flow replication test (create, verify, cleanup)
 
-### validate-cluster.sh
+All parameters (node count, ports, certificates) are auto-detected from cluster configuration.
 
-Validates cluster configuration.
+### validate
+
+Validates cluster configuration before deployment with automatic parameter detection.
 
 ```bash
-./validate-cluster.sh <CLUSTER_NAME> [NODE_COUNT]
+./validate <CLUSTER_NAME>
 ```
 
 **Example**:
 ```bash
-./validate-cluster.sh cluster01 3
+./validate cluster01      # Auto-detects all parameters
+./validate cluster02      # Auto-detects all parameters
 ```
 
-**Validates**:
-- Directory structure
-- Certificates
-- Configuration files
-- Docker Compose syntax
-- Port conflicts
+**7 Validation Categories**:
+1. Directory structure (volumes, certs, configs)
+2. Certificate chain (CA, keystores, truststores)
+3. Configuration files (nifi.properties, authorizers.xml, etc.)
+4. Node addresses & remote input hosts (Site-to-Site)
+5. ZooKeeper configuration (connect strings)
+6. Docker Compose file syntax & service count
+7. Port conflicts & availability (duplicates, in-use ports)
+
+All parameters are auto-detected from cluster workspace.
 
 ### delete-cluster.sh
 
@@ -246,13 +254,13 @@ Safely deletes a cluster including containers, networks, and data.
 ./create-cluster.sh cluster01 1 3
 
 # 2. Validate
-./validate-cluster.sh cluster01 3
+./validate cluster01
 
 # 3. Start
 docker compose -f docker-compose-cluster01.yml up -d
 
 # 4. Test
-./test-cluster.sh cluster01 3 30443
+./test cluster01
 
 # 5. Access
 open https://localhost:30443/nifi
@@ -278,9 +286,9 @@ docker compose -f docker-compose-cluster02.yml up -d
 # Both running simultaneously
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
-# Test both clusters
-./test-cluster.sh cluster01 3 30443
-./test-cluster.sh cluster02 3 31443
+# Test both clusters (auto-detects parameters)
+./test cluster01
+./test cluster02
 
 # Manage independently
 docker compose -f docker-compose-cluster01.yml restart
@@ -343,7 +351,7 @@ docker compose -f docker-compose-cluster01.yml logs zookeeper-1
 lsof -i :30443
 
 # Validate configuration
-./validate-cluster.sh cluster01 3
+./validate cluster01
 
 # Use different cluster number
 ./create-cluster.sh cluster01 2 3  # Uses ports 31xxx
@@ -450,13 +458,13 @@ docker compose -f docker-compose-cluster01.yml up -d
 ./create-cluster.sh cluster01 1 3
 
 # Validate
-./validate-cluster.sh cluster01 3
+./validate cluster01
 
 # Start
 docker compose -f docker-compose-cluster01.yml up -d
 
 # Test
-./test-cluster.sh cluster01 3 30443
+./test cluster01
 
 # Logs
 docker compose -f docker-compose-cluster01.yml logs -f
