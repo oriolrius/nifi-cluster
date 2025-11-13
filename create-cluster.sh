@@ -178,7 +178,7 @@ print_success "Required directories exist"
 REQUIRED_SCRIPTS=(
     "certs/generate-certs.sh"
     "conf/generate-cluster-configs.sh"
-    "generate-docker-compose.sh"
+    "lib/generate-docker-compose.sh"
 )
 
 for script in "${REQUIRED_SCRIPTS[@]}"; do
@@ -278,7 +278,7 @@ echo ""
 print_step 5 5 "Generating docker-compose-${CLUSTER_NAME}.yml"
 echo ""
 
-if ./generate-docker-compose.sh "$CLUSTER_NAME" "$CLUSTER_NUM" "$NODE_COUNT"; then
+if ./lib/generate-docker-compose.sh "$CLUSTER_NAME" "$CLUSTER_NUM" "$NODE_COUNT"; then
     print_success "docker-compose-${CLUSTER_NAME}.yml generated successfully"
 else
     print_error "docker-compose file generation failed"

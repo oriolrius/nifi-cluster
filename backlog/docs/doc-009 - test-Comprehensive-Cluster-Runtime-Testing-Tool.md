@@ -1114,7 +1114,7 @@ Use these complementary tools:
 - **NiFi UI:** Manual testing of flows
 - **Performance testing:** JMeter, custom load scripts
 - **Monitoring:** Prometheus + Grafana
-- **Site-to-Site testing:** Custom scripts (see `verify-s2s-port.sh`)
+- **Site-to-Site testing:** Custom scripts (see `lib/verify-s2s-port.sh`)
 
 ## Best Practices
 

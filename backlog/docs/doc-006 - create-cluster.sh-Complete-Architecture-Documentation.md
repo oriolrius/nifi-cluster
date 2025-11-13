@@ -119,7 +119,7 @@ create-cluster.sh (Master Orchestrator)
 │
 └── Step 5: Generate Docker Compose File
     │
-    └── generate-docker-compose.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT> [REMOTE_CLUSTER_NAME] [REMOTE_NODE_COUNT] [HOST_IP]
+    └── lib/generate-docker-compose.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT> [REMOTE_CLUSTER_NAME] [REMOTE_NODE_COUNT] [HOST_IP]
         ├── Reads: .env (for DOMAIN variable)
         ├── Calculates same port assignments as Step 4
         ├── Builds ZooKeeper servers string for ZOO_SERVERS environment variable
@@ -243,7 +243,7 @@ NIFI_JVM_HEAP_MAX=2g
 **DOMAIN Variable Importance:**
 - Used in `generate-certs.sh` to add FQDN to certificate SANs
 - Used in `generate-cluster-configs.sh` to set `nifi.remote.input.host`
-- Used in `generate-docker-compose.sh` to configure `NIFI_WEB_PROXY_HOST`
+- Used in `lib/generate-docker-compose.sh` to configure `NIFI_WEB_PROXY_HOST`
 - **Critical for cross-cluster Site-to-Site communication**
 
 ### Generated Configuration Files
@@ -352,7 +352,7 @@ clusters/<CLUSTER_NAME>/
 - Verifies required scripts are executable:
   - `certs/generate-certs.sh`
   - `conf/generate-cluster-configs.sh`
-  - `generate-docker-compose.sh`
+  - `lib/generate-docker-compose.sh`
 
 ### 2. Workspace Initialization
 - Creates `clusters/<CLUSTER_NAME>/` directory structure
@@ -383,7 +383,7 @@ clusters/<CLUSTER_NAME>/
 - Copies certificates to config directories
 
 ### 5. Docker Compose Generation
-- Calls `generate-docker-compose.sh`
+- Calls `lib/generate-docker-compose.sh`
 - Creates `docker-compose-<CLUSTER_NAME>.yml`
 - Defines ZooKeeper ensemble services
 - Defines NiFi cluster node services
@@ -439,10 +439,10 @@ For Site-to-Site between clusters, you need:
 3. **Regenerate docker-compose with extra_hosts:**
    ```bash
    # From cluster01, add cluster02 hosts
-   ./generate-docker-compose.sh cluster01 1 3 cluster02 3 <CLUSTER02_HOST_IP>
+   ./lib/generate-docker-compose.sh cluster01 1 3 cluster02 3 <CLUSTER02_HOST_IP>
    
    # From cluster02, add cluster01 hosts  
-   ./generate-docker-compose.sh cluster02 2 3 cluster01 3 <CLUSTER01_HOST_IP>
+   ./lib/generate-docker-compose.sh cluster02 2 3 cluster01 3 <CLUSTER01_HOST_IP>
    ```
 
 ## Security Considerations

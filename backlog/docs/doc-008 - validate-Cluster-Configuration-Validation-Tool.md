@@ -646,7 +646,7 @@ cd ..
 **Fix:**
 ```bash
 # Regenerate compose with different CLUSTER_NUM
-./generate-docker-compose.sh cluster01 2 3  # Use cluster num 2 instead of 1
+./lib/generate-docker-compose.sh cluster01 2 3  # Use cluster num 2 instead of 1
 ```
 
 ### Scenario 4: Docker Compose Syntax Errors
@@ -664,7 +664,7 @@ cd ..
 **Fix:**
 ```bash
 # Regenerate compose file
-./generate-docker-compose.sh cluster01 1 3
+./lib/generate-docker-compose.sh cluster01 1 3
 ```
 
 ### Scenario 5: Missing Volume Directories
@@ -921,7 +921,7 @@ cd /path/to/nifi-cluster
 docker compose version
 
 # Regenerate compose file
-./generate-docker-compose.sh cluster01 1 3
+./lib/generate-docker-compose.sh cluster01 1 3
 
 # Validate manually
 docker compose -f docker-compose-cluster01.yml config

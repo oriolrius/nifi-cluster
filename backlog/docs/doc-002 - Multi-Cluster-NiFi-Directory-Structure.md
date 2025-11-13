@@ -53,7 +53,7 @@ nifi-cluster/
 │   ├── generate-cluster-certs.sh  # Generate cluster certificates
 │   ├── generate-cluster-configs.sh # Generate cluster configs
 │   ├── init-cluster-volumes.sh    # Initialize cluster volumes
-│   ├── generate-docker-compose.sh # Generate docker-compose file
+│   ├── lib/generate-docker-compose.sh # Generate docker-compose file
 │   ├── create-cluster.sh          # Master cluster creation script
 │   └── validate-cluster.sh        # Validate cluster setup
 │
@@ -139,7 +139,7 @@ mkdir -p clusters/cluster01/{certs,conf,volumes}
 ./scripts/init-cluster-volumes.sh cluster01
 
 # 6. Generate docker-compose.yml
-./scripts/generate-docker-compose.sh cluster01
+./scripts/lib/generate-docker-compose.sh cluster01
 
 # 7. Start the cluster
 cd clusters/cluster01

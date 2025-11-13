@@ -1,6 +1,6 @@
 ---
 id: task-010
-title: Implement docker-compose generation script (generate-docker-compose.sh)
+title: Implement docker-compose generation script (lib/generate-docker-compose.sh)
 status: Done
 assignee: []
 created_date: '2025-11-11 14:59'
@@ -39,7 +39,7 @@ Reference: Analysis report section 11.4, 12.3
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Implemented generate-docker-compose.sh script in project root directory. Script features:
+Implemented lib/generate-docker-compose.sh script in project root directory. Script features:
 - Accepts CLUSTER_NAME, CLUSTER_NUM, NODE_COUNT parameters
 - Calculates all port mappings using BASE_PORT = 29000 + (CLUSTER_NUM * 1000)
 - Generates complete docker-compose.yml with ZooKeeper ensemble and NiFi cluster

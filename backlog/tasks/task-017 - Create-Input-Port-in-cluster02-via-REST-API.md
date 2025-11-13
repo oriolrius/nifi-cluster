@@ -46,7 +46,7 @@ State: STOPPED (expected)
 
 Scripts created:
 - create-input-port.sh (creation)
-- verify-s2s-port.sh (verification)
+- lib/verify-s2s-port.sh (verification)
 - check-port-state.sh (status check)
 
 Acceptance Criteria Status:

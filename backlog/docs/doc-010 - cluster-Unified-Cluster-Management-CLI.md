@@ -30,7 +30,7 @@ cluster (Unified CLI Orchestrator)
 │   ├── delete-cluster.sh (cluster deletion)
 │   ├── validate (configuration validation)
 │   ├── test (runtime testing)
-│   ├── generate-docker-compose.sh (compose regeneration)
+│   ├── lib/generate-docker-compose.sh (compose regeneration)
 │   └── Docker Compose (container orchestration)
 │
 ├── Command Parsing
@@ -1118,7 +1118,7 @@ vim .env
 ├── delete-cluster.sh               # Cluster deletion
 ├── validate                        # Configuration validation
 ├── test                            # Runtime testing
-├── generate-docker-compose.sh      # Compose generation
+├── lib/generate-docker-compose.sh      # Compose generation
 └── docker-compose-cluster*.yml     # Generated compose files
 ```
 

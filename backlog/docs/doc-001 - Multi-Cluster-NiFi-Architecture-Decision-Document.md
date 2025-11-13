@@ -325,7 +325,7 @@ create-cluster.sh (master)
   ├─> init-cluster-volumes.sh
   ├─> generate-cluster-certs.sh
   ├─> generate-cluster-configs.sh
-  └─> generate-docker-compose.sh
+  └─> lib/generate-docker-compose.sh
 ```
 
 **Usage**:
