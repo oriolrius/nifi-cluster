@@ -74,9 +74,9 @@ echo ""
 ZK_SERVERS=""
 for i in $(seq 1 "$NODE_COUNT"); do
     if [ $i -eq 1 ]; then
-        ZK_SERVERS="server.${i}=zookeeper-${i}:2888:3888;2181"
+        ZK_SERVERS="server.${i}=${CLUSTER_NAME}.zookeeper-${i}:2888:3888;2181"
     else
-        ZK_SERVERS="${ZK_SERVERS} server.${i}=zookeeper-${i}:2888:3888;2181"
+        ZK_SERVERS="${ZK_SERVERS} server.${i}=${CLUSTER_NAME}.zookeeper-${i}:2888:3888;2181"
     fi
 done
 
@@ -84,33 +84,31 @@ done
 ZK_CONNECT=""
 for i in $(seq 1 "$NODE_COUNT"); do
     if [ $i -eq 1 ]; then
-        ZK_CONNECT="zookeeper-${i}:2181"
+        ZK_CONNECT="${CLUSTER_NAME}.zookeeper-${i}:2181"
     else
-        ZK_CONNECT="${ZK_CONNECT},zookeeper-${i}:2181"
+        ZK_CONNECT="${ZK_CONNECT},${CLUSTER_NAME}.zookeeper-${i}:2181"
     fi
 done
 
-# Build proxy host string
-PROXY_HOST=""
+# Build proxy host strings (explicit host:port pairs, no wildcards)
+# Note: Wildcards like localhost:* are NOT supported by NiFi
+PROXY_HOSTS=""
 for i in $(seq 1 "$NODE_COUNT"); do
     https_port=$((HTTPS_BASE + i - 1))
     if [ $i -eq 1 ]; then
-        PROXY_HOST="localhost:${https_port}"
+        PROXY_HOSTS="localhost:${https_port},127.0.0.1:${https_port},${CLUSTER_NAME}.nifi-${i}:8443"
     else
-        PROXY_HOST="${PROXY_HOST},localhost:${https_port}"
+        PROXY_HOSTS="${PROXY_HOSTS},localhost:${https_port},127.0.0.1:${https_port},${CLUSTER_NAME}.nifi-${i}:8443"
     fi
 done
-for i in $(seq 1 "$NODE_COUNT"); do
-    PROXY_HOST="${PROXY_HOST},nifi-${i}:8443"
-done
 
-# Build ZooKeeper depends_on list
+# Build ZooKeeper depends_on list (with cluster namespace)
 ZK_DEPENDS=""
 for i in $(seq 1 "$NODE_COUNT"); do
     if [ $i -eq 1 ]; then
-        ZK_DEPENDS="      - zookeeper-${i}"
+        ZK_DEPENDS="      - ${CLUSTER_NAME}-zookeeper-${i}"
     else
-        ZK_DEPENDS="${ZK_DEPENDS}\n      - zookeeper-${i}"
+        ZK_DEPENDS="${ZK_DEPENDS}\n      - ${CLUSTER_NAME}-zookeeper-${i}"
     fi
 done
 
@@ -133,10 +131,10 @@ for i in $(seq 1 "$NODE_COUNT"); do
 
     cat >> "$OUTPUT_FILE" << EOF
   # ZooKeeper Node $i
-  zookeeper-${i}:
+  ${CLUSTER_NAME}-zookeeper-${i}:
     image: zookeeper:\${ZOOKEEPER_VERSION:-3.9}
-    container_name: ${CLUSTER_NAME}-zookeeper-${i}
-    hostname: zookeeper-${i}
+    container_name: ${CLUSTER_NAME}.zookeeper-${i}
+    hostname: ${CLUSTER_NAME}.zookeeper-${i}
     networks:
       - ${CLUSTER_NAME}-network
     ports:
@@ -150,9 +148,9 @@ for i in $(seq 1 "$NODE_COUNT"); do
       ZOO_SYNC_LIMIT: 5
       ZOO_MAX_CLIENT_CNXNS: 60
     volumes:
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-zookeeper-${i}/data:/data
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-zookeeper-${i}/datalog:/datalog
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-zookeeper-${i}/logs:/logs
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.zookeeper-${i}/data:/data
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.zookeeper-${i}/datalog:/datalog
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.zookeeper-${i}/logs:/logs
     restart: unless-stopped
 
 EOF
@@ -164,14 +162,19 @@ for i in $(seq 1 "$NODE_COUNT"); do
     HTTPS_PORT=$((HTTPS_BASE + i - 1))
     S2S_PORT=$((S2S_BASE + i - 1))
 
+    # Build proxy host for this specific node
+    NODE_HTTPS_PORT=$((HTTPS_BASE + i - 1))
+    NODE_PROXY_HOST="localhost:${NODE_HTTPS_PORT},127.0.0.1:${NODE_HTTPS_PORT},${CLUSTER_NAME}.nifi-${i}:8443"
+
     cat >> "$OUTPUT_FILE" << EOF
   # NiFi Cluster Node $i
-  nifi-${i}:
+  ${CLUSTER_NAME}-nifi-${i}:
     image: apache/nifi:\${NIFI_VERSION:-latest}
-    container_name: ${CLUSTER_NAME}-nifi-${i}
-    hostname: nifi-${i}
+    container_name: ${CLUSTER_NAME}.nifi-${i}
+    hostname: ${CLUSTER_NAME}.nifi-${i}
     networks:
       - ${CLUSTER_NAME}-network
+      - inter-cluster-network
     ports:
       - "${HTTPS_PORT}:8443"   # HTTPS UI
       - "${S2S_PORT}:10000" # Site-to-Site
@@ -179,14 +182,15 @@ for i in $(seq 1 "$NODE_COUNT"); do
       # Cluster Configuration
       NIFI_CLUSTER_IS_NODE: "true"
       NIFI_CLUSTER_NODE_PROTOCOL_PORT: 8082
-      NIFI_CLUSTER_NODE_ADDRESS: nifi-${i}
+      NIFI_CLUSTER_NODE_ADDRESS: ${CLUSTER_NAME}.nifi-${i}
       NIFI_ZK_CONNECT_STRING: ${ZK_CONNECT}
       NIFI_ELECTION_MAX_WAIT: 1 min
 
       # Web Properties - HTTPS
       NIFI_WEB_HTTPS_PORT: 8443
-      NIFI_WEB_HTTPS_HOST: nifi-${i}
-      NIFI_WEB_PROXY_HOST: ${PROXY_HOST}
+      NIFI_WEB_HTTPS_HOST: ${CLUSTER_NAME}.nifi-${i}
+      NIFI_WEB_HTTPS_NETWORK_INTERFACE_DEFAULT: eth0
+      NIFI_WEB_PROXY_HOST: ${NODE_PROXY_HOST}
 
       # Security - Single User (for demo/dev)
       SINGLE_USER_CREDENTIALS_USERNAME: \${NIFI_SINGLE_USER_USERNAME:-admin}
@@ -201,13 +205,13 @@ for i in $(seq 1 "$NODE_COUNT"); do
       NIFI_JVM_HEAP_INIT: \${NIFI_JVM_HEAP_INIT:-2g}
       NIFI_JVM_HEAP_MAX: \${NIFI_JVM_HEAP_MAX:-2g}
     volumes:
-      - ./clusters/${CLUSTER_NAME}/conf/${CLUSTER_NAME}-nifi-${i}:/opt/nifi/nifi-current/conf:rw
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/content_repository:/opt/nifi/nifi-current/content_repository
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/database_repository:/opt/nifi/nifi-current/database_repository
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/provenance_repository:/opt/nifi/nifi-current/provenance_repository
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/state:/opt/nifi/nifi-current/state
-      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}-nifi-${i}/logs:/opt/nifi/nifi-current/logs
+      - ./clusters/${CLUSTER_NAME}/conf/${CLUSTER_NAME}.nifi-${i}:/opt/nifi/nifi-current/conf:rw
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.nifi-${i}/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.nifi-${i}/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.nifi-${i}/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.nifi-${i}/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.nifi-${i}/state:/opt/nifi/nifi-current/state
+      - ./clusters/${CLUSTER_NAME}/volumes/${CLUSTER_NAME}.nifi-${i}/logs:/opt/nifi/nifi-current/logs
     depends_on:
 $(echo -e "$ZK_DEPENDS")
     restart: unless-stopped
@@ -227,6 +231,9 @@ cat >> "$OUTPUT_FILE" << EOF
 networks:
   ${CLUSTER_NAME}-network:
     driver: bridge
+    enable_ipv6: false
+  inter-cluster-network:
+    external: true
 EOF
 
 echo ""
@@ -237,8 +244,8 @@ echo ""
 echo "Generated: ${OUTPUT_FILE}"
 echo ""
 echo "Services created:"
-echo "  - ${NODE_COUNT} ZooKeeper nodes (zookeeper-1 to zookeeper-${NODE_COUNT})"
-echo "  - ${NODE_COUNT} NiFi nodes (nifi-1 to nifi-${NODE_COUNT})"
+echo "  - ${NODE_COUNT} ZooKeeper nodes (${CLUSTER_NAME}-zookeeper-1 to ${CLUSTER_NAME}-zookeeper-${NODE_COUNT})"
+echo "  - ${NODE_COUNT} NiFi nodes (${CLUSTER_NAME}-nifi-1 to ${CLUSTER_NAME}-nifi-${NODE_COUNT})"
 echo "  - Network: ${CLUSTER_NAME}-network"
 echo ""
 echo "Access URLs:"

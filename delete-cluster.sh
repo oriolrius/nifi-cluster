@@ -125,8 +125,8 @@ if [ -f "$COMPOSE_FILE" ]; then
     print_info "Docker Compose file found: $COMPOSE_FILE"
 fi
 
-# Check for running containers
-RUNNING_CONTAINERS=$(docker ps -a --format '{{.Names}}' | grep "^${CLUSTER_NAME}-" || true)
+# Check for running containers (matches both dash and dot separators)
+RUNNING_CONTAINERS=$(docker ps -a --format '{{.Names}}' | grep "^${CLUSTER_NAME}[-.]" || true)
 if [ -n "$RUNNING_CONTAINERS" ]; then
     EXISTS_CONTAINERS=true
     CONTAINER_COUNT=$(echo "$RUNNING_CONTAINERS" | wc -l)

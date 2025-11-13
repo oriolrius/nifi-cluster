@@ -11,7 +11,7 @@ curl -k -s -X POST \
   -d '{
     "revision": {"version": 0},
     "component": {
-      "targetUri": "https://cluster02-nifi-1:8443/nifi",
+      "targetUri": "https://cluster02.nifi-1:8443/nifi",
       "transportProtocol": "HTTP",
       "communicationsTimeout": "30 sec",
       "yieldDuration": "10 sec",

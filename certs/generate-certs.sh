@@ -44,14 +44,14 @@ echo ""
 # Create directories if they don't exist
 mkdir -p ca
 for i in $(seq 1 "$NODE_COUNT"); do
-    mkdir -p "${CLUSTER_NAME}-nifi-${i}"
-    mkdir -p "${CLUSTER_NAME}-zookeeper-${i}"
+    mkdir -p "${CLUSTER_NAME}.nifi-${i}"
+    mkdir -p "${CLUSTER_NAME}.zookeeper-${i}"
 done
 
 # Clean up existing NODE certificates (not CA!)
 echo "Cleaning up old node certificates..."
-rm -f ${CLUSTER_NAME}-nifi-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
-rm -f ${CLUSTER_NAME}-zookeeper-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
+rm -f ${CLUSTER_NAME}.nifi-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
+rm -f ${CLUSTER_NAME}.zookeeper-*/*.{pem,key,csr,p12,jks,cnf} 2>/dev/null || true
 
 echo ""
 echo "Step 1: Using Shared Root CA"
@@ -64,11 +64,13 @@ if [ -f "$SHARED_CA_DIR/ca-cert.pem" ] && [ -f "$SHARED_CA_DIR/ca-key.pem" ]; th
     # Create local ca directory
     mkdir -p ca
 
-    # Copy shared CA to output directory
-    cp "$SHARED_CA_DIR/ca-key.pem" ca/
-    cp "$SHARED_CA_DIR/ca-cert.pem" ca/
-    cp "$SHARED_CA_DIR/truststore.jks" ca/ 2>/dev/null || true
-    cp "$SHARED_CA_DIR/truststore.p12" ca/ 2>/dev/null || true
+    # Copy shared CA to output directory (only if different location)
+    if [ "$(realpath "$SHARED_CA_DIR")" != "$(realpath ca)" ]; then
+        cp "$SHARED_CA_DIR/ca-key.pem" ca/
+        cp "$SHARED_CA_DIR/ca-cert.pem" ca/
+        cp "$SHARED_CA_DIR/truststore.jks" ca/ 2>/dev/null || true
+        cp "$SHARED_CA_DIR/truststore.p12" ca/ 2>/dev/null || true
+    fi
 
     # If truststores don't exist, create them
     if [ ! -f "ca/truststore.jks" ]; then
@@ -77,7 +79,9 @@ if [ -f "$SHARED_CA_DIR/ca-cert.pem" ] && [ -f "$SHARED_CA_DIR/ca-key.pem" ]; th
             -file ca/ca-cert.pem \
             -keystore ca/truststore.jks \
             -storepass "$TRUSTSTORE_PASS"
-        cp ca/truststore.jks "$SHARED_CA_DIR/"
+        if [ "$(realpath "$SHARED_CA_DIR")" != "$(realpath ca)" ]; then
+            cp ca/truststore.jks "$SHARED_CA_DIR/"
+        fi
     fi
 
     if [ ! -f "ca/truststore.p12" ]; then
@@ -88,7 +92,9 @@ if [ -f "$SHARED_CA_DIR/ca-cert.pem" ] && [ -f "$SHARED_CA_DIR/ca-key.pem" ]; th
             -destkeystore ca/truststore.p12 \
             -deststoretype PKCS12 \
             -deststorepass "$TRUSTSTORE_PASS"
-        cp ca/truststore.p12 "$SHARED_CA_DIR/"
+        if [ "$(realpath "$SHARED_CA_DIR")" != "$(realpath ca)" ]; then
+            cp ca/truststore.p12 "$SHARED_CA_DIR/"
+        fi
     fi
 
     echo "✓ Shared CA ready for use"
@@ -128,11 +134,13 @@ else
         -deststorepass "$TRUSTSTORE_PASS"
     echo "✓ Created PKCS12 truststore"
 
-    # Copy to output directory
-    cp "$SHARED_CA_DIR/ca-key.pem" ca/
-    cp "$SHARED_CA_DIR/ca-cert.pem" ca/
-    cp "$SHARED_CA_DIR/truststore.jks" ca/
-    cp "$SHARED_CA_DIR/truststore.p12" ca/
+    # Copy to output directory (only if different location)
+    if [ "$(realpath "$SHARED_CA_DIR")" != "$(realpath ca)" ]; then
+        cp "$SHARED_CA_DIR/ca-key.pem" ca/
+        cp "$SHARED_CA_DIR/ca-cert.pem" ca/
+        cp "$SHARED_CA_DIR/truststore.jks" ca/
+        cp "$SHARED_CA_DIR/truststore.p12" ca/
+    fi
 
     # Set secure permissions on CA private key
     chmod 600 "$SHARED_CA_DIR/ca-key.pem"
@@ -146,10 +154,10 @@ echo "---------------------------------------"
 
 for i in $(seq 1 "$NODE_COUNT"); do
     node="nifi-${i}"
-    node_fqn="${CLUSTER_NAME}-${node}"
+    node_fqn="${CLUSTER_NAME}.${node}"
     echo "Generating certificates for $node_fqn..."
 
-    NODE_DIR="${CLUSTER_NAME}-${node}"
+    NODE_DIR="${CLUSTER_NAME}.${node}"
     SUBJECT="/C=US/ST=California/L=San Francisco/O=NiFi Cluster/OU=NiFi Nodes/CN=$node_fqn"
 
     # Generate private key
@@ -235,10 +243,10 @@ echo "---------------------------------------"
 
 for i in $(seq 1 "$NODE_COUNT"); do
     node="zookeeper-${i}"
-    node_fqn="${CLUSTER_NAME}-${node}"
+    node_fqn="${CLUSTER_NAME}.${node}"
     echo "Generating certificates for $node_fqn..."
 
-    NODE_DIR="${CLUSTER_NAME}-${node}"
+    NODE_DIR="${CLUSTER_NAME}.${node}"
     SUBJECT="/C=US/ST=California/L=San Francisco/O=NiFi Cluster/OU=ZooKeeper Nodes/CN=$node_fqn"
 
     # Generate private key
@@ -327,10 +335,10 @@ echo "Summary:"
 echo "  - Shared Root CA: $SHARED_CA_DIR/ca-cert.pem"
 echo "  - CA copied to: $OUTPUT_DIR/ca/"
 echo "  - Truststore: ca/truststore.jks and ca/truststore.p12 (PKCS12)"
-echo "  - NiFi node keystores: ${CLUSTER_NAME}-nifi-*/keystore.p12 (PKCS12) and ${CLUSTER_NAME}-nifi-*/keystore.jks"
-echo "  - NiFi node truststores: ${CLUSTER_NAME}-nifi-*/truststore.p12 (PKCS12) and ${CLUSTER_NAME}-nifi-*/truststore.jks"
-echo "  - ZooKeeper node keystores: ${CLUSTER_NAME}-zookeeper-*/keystore.p12 and ${CLUSTER_NAME}-zookeeper-*/keystore.jks"
-echo "  - ZooKeeper node truststores: ${CLUSTER_NAME}-zookeeper-*/truststore.p12 and ${CLUSTER_NAME}-zookeeper-*/truststore.jks"
+echo "  - NiFi node keystores: ${CLUSTER_NAME}.nifi-*/keystore.p12 (PKCS12) and ${CLUSTER_NAME}.nifi-*/keystore.jks"
+echo "  - NiFi node truststores: ${CLUSTER_NAME}.nifi-*/truststore.p12 (PKCS12) and ${CLUSTER_NAME}.nifi-*/truststore.jks"
+echo "  - ZooKeeper node keystores: ${CLUSTER_NAME}.zookeeper-*/keystore.p12 and ${CLUSTER_NAME}.zookeeper-*/keystore.jks"
+echo "  - ZooKeeper node truststores: ${CLUSTER_NAME}.zookeeper-*/truststore.p12 and ${CLUSTER_NAME}.zookeeper-*/truststore.jks"
 echo ""
 echo "Passwords:"
 echo "  - Keystore password: $KEYSTORE_PASS"

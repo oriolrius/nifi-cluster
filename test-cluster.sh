@@ -161,8 +161,8 @@ test_container_status() {
 
     print_test "Checking Docker containers for cluster: $CLUSTER_NAME..."
 
-    # Get containers for this specific cluster
-    CONTAINERS=$(docker ps -a --format '{{.Names}}' | grep "^${CLUSTER_NAME}-")
+    # Get containers for this specific cluster (matches both dash and dot separators)
+    CONTAINERS=$(docker ps -a --format '{{.Names}}' | grep "^${CLUSTER_NAME}[-.]")
 
     if [ -z "$CONTAINERS" ]; then
         print_fail "No containers found for cluster $CLUSTER_NAME"
@@ -299,7 +299,7 @@ test_zookeeper_health() {
 
     for i in $(seq 1 $NODE_COUNT); do
         ZK_PORT=$((ZK_BASE_PORT + i - 1))
-        CONTAINER_NAME="${CLUSTER_NAME}-zookeeper-${i}"
+        CONTAINER_NAME="${CLUSTER_NAME}.zookeeper-${i}"
         print_test "Testing ZooKeeper Node $i (port $ZK_PORT)..."
 
         # Check if container is running

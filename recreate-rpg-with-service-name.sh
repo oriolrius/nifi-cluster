@@ -3,7 +3,7 @@
 set -e
 
 CLUSTER01_URL="https://localhost:30443"
-CLUSTER02_SERVICE="cluster02-nifi-1"
+CLUSTER02_SERVICE="cluster02.nifi-1"
 CLUSTER02_PORT="8443"
 OLD_RPG_ID="76ccef2c-019a-1000-ffff-ffff809a40c9"
 

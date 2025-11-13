@@ -203,26 +203,44 @@ print_success "Created workspace: ${CLUSTER_DIR}"
 echo ""
 echo "Creating ZooKeeper volume directories..."
 for i in $(seq 1 "$NODE_COUNT"); do
-    mkdir -p "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-zookeeper-${i}"/{data,datalog,logs}
-    echo "  → Created ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-zookeeper-${i}/{data,datalog,logs}"
+    mkdir -p "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.zookeeper-${i}"/{data,datalog,logs}
+    echo "  → Created ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.zookeeper-${i}/{data,datalog,logs}"
 done
 
 echo ""
 echo "Creating NiFi volume directories..."
 for i in $(seq 1 "$NODE_COUNT"); do
-    mkdir -p "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-nifi-${i}"/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}
-    echo "  → Created ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-nifi-${i}/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}"
+    mkdir -p "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.nifi-${i}"/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}
+    echo "  → Created ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.nifi-${i}/{content_repository,database_repository,flowfile_repository,provenance_repository,state,logs}"
 done
 
 echo ""
 echo "Setting permissions..."
-# Set proper ownership (1000:1000 is common for NiFi and ZooKeeper)
+# Set proper ownership (1000:1000 is common for NiFi and ZooKeeper containers)
 if command -v sudo &> /dev/null; then
-    sudo chown -R 1000:1000 "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-zookeeper-"* 2>/dev/null || print_warning "Could not set ownership on ZooKeeper volumes (may require manual intervention)"
-    sudo chown -R 1000:1000 "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}-nifi-"* 2>/dev/null || print_warning "Could not set ownership on NiFi volumes (may require manual intervention)"
+    # Set ownership for each ZooKeeper volume directory
+    for i in $(seq 1 "$NODE_COUNT"); do
+        if sudo chown -R 1000:1000 "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.zookeeper-${i}"; then
+            echo "  → Set ownership on ${CLUSTER_NAME}.zookeeper-${i}"
+        else
+            print_warning "Failed to set ownership on ${CLUSTER_NAME}.zookeeper-${i}"
+        fi
+    done
+
+    # Set ownership for each NiFi volume directory
+    for i in $(seq 1 "$NODE_COUNT"); do
+        if sudo chown -R 1000:1000 "${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.nifi-${i}"; then
+            echo "  → Set ownership on ${CLUSTER_NAME}.nifi-${i}"
+        else
+            print_warning "Failed to set ownership on ${CLUSTER_NAME}.nifi-${i}"
+        fi
+    done
+
     print_success "Permissions set (UID:GID 1000:1000)"
 else
-    print_warning "sudo not available - you may need to manually set ownership on volume directories"
+    print_warning "sudo not available - you may need to manually set ownership:"
+    echo "  sudo chown -R 1000:1000 ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.zookeeper-*"
+    echo "  sudo chown -R 1000:1000 ${CLUSTER_DIR}/volumes/${CLUSTER_NAME}.nifi-*"
 fi
 
 print_success "Cluster workspace initialization complete"
@@ -302,7 +320,7 @@ echo ""
 echo "  5. Access the NiFi UI at any of the URLs above"
 echo ""
 echo -e "${CYAN}Useful Commands for ${CLUSTER_NAME}:${NC}"
-echo "  View logs:         ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml logs -f nifi-1${NC}"
+echo "  View logs:         ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml logs -f ${CLUSTER_NAME}-nifi-1${NC}"
 echo "  Check status:      ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml ps${NC}"
 echo "  Stop cluster:      ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml down${NC}"
 echo "  Restart cluster:   ${YELLOW}docker compose -f docker-compose-${CLUSTER_NAME}.yml restart${NC}"

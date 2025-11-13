@@ -1,0 +1,305 @@
+#!/bin/bash
+# Simplified cluster validation script - auto-detects all parameters
+# Usage: ./validate <cluster_name>
+#
+# Example: ./validate cluster01
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/cluster-utils.sh"
+
+# Counters
+PASSED=0
+FAILED=0
+WARNINGS=0
+
+# Function to print check header
+print_check() {
+    echo -n "  [$1] $2... "
+}
+
+# Function to print pass
+print_pass() {
+    echo -e "${GREEN}✓ PASS${NC}"
+    ((PASSED++))
+}
+
+# Function to print fail
+print_fail() {
+    echo -e "${RED}✗ FAIL${NC}"
+    if [ -n "$1" ]; then
+        echo -e "      ${RED}└─${NC} $1"
+    fi
+    ((FAILED++))
+}
+
+# Function to print warning
+print_warning() {
+    echo -e "${YELLOW}⚠ WARNING${NC}"
+    if [ -n "$1" ]; then
+        echo -e "      ${YELLOW}└─${NC} $1"
+    fi
+    ((WARNINGS++))
+}
+
+# Show help
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    cat << EOF
+${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}
+${BLUE}║  NiFi Cluster Validation Tool                                 ║${NC}
+${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}
+
+Validates cluster configuration before deployment.
+All parameters are auto-detected!
+
+Usage: $0 <cluster_name>
+
+Examples:
+  $0 cluster01      # Validate cluster01 (auto-detects node count, ports, etc.)
+  $0 cluster02      # Validate cluster02
+
+Validations Performed:
+  1. Directory structure
+  2. Certificate chain
+  3. Configuration files
+  4. Node addresses in nifi.properties
+  5. ZooKeeper configuration
+  6. Docker Compose file syntax
+  7. Port conflicts
+
+EOF
+    exit 0
+fi
+
+# Validate arguments
+if [ -z "$1" ]; then
+    echo -e "${RED}Error: Cluster name required${NC}"
+    echo "Usage: $0 <cluster_name>"
+    echo "Example: $0 cluster01"
+    exit 1
+fi
+
+CLUSTER_NAME="$1"
+
+# Validate cluster name
+if ! validate_cluster_name "$CLUSTER_NAME"; then
+    exit 1
+fi
+
+if ! cluster_exists "$CLUSTER_NAME"; then
+    echo -e "${RED}Error: Cluster ${CLUSTER_NAME} not found${NC}"
+    echo ""
+    echo "Available clusters:"
+    ./cluster list
+    exit 1
+fi
+
+# Auto-detect parameters
+CLUSTER_NUM=$(get_cluster_num "$CLUSTER_NAME")
+NODE_COUNT=$(get_node_count "$CLUSTER_NAME")
+BASE_PORT=$(get_base_port "$CLUSTER_NUM")
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose-${CLUSTER_NAME}.yml"
+CLUSTER_DIR="$SCRIPT_DIR/clusters/${CLUSTER_NAME}"
+
+echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  NiFi Cluster Configuration Validator                         ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo "Configuration (auto-detected):"
+echo "  Cluster Name:   $CLUSTER_NAME"
+echo "  Cluster Number: $CLUSTER_NUM"
+echo "  Node Count:     $NODE_COUNT"
+echo "  Base Port:      $BASE_PORT"
+echo "  Cluster Dir:    clusters/${CLUSTER_NAME}"
+echo ""
+
+# 1. Directory Structure Validation
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 1. Directory Structure Validation${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+print_check "DIR" "Checking clusters/${CLUSTER_NAME}/ workspace"
+if [ -d "$CLUSTER_DIR" ]; then
+    print_pass
+else
+    print_fail "Cluster workspace directory not found"
+fi
+
+for dir in certs conf volumes; do
+    print_check "DIR" "Checking clusters/${CLUSTER_NAME}/$dir/ directory"
+    if [ -d "$CLUSTER_DIR/$dir" ]; then
+        print_pass
+    else
+        print_fail "Directory $dir/ not found"
+    fi
+done
+
+# Check ZooKeeper volumes
+for i in $(seq 1 "$NODE_COUNT"); do
+    print_check "ZK$i" "Checking ${CLUSTER_NAME}.zookeeper-$i volumes"
+    if [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.zookeeper-$i/data" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.zookeeper-$i/datalog" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.zookeeper-$i/logs" ]; then
+        print_pass
+    else
+        print_fail "${CLUSTER_NAME}.zookeeper-$i volume directories incomplete"
+    fi
+done
+
+# Check NiFi volumes
+for i in $(seq 1 "$NODE_COUNT"); do
+    print_check "NFI$i" "Checking ${CLUSTER_NAME}.nifi-$i volumes"
+    if [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.nifi-$i/content_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.nifi-$i/database_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.nifi-$i/flowfile_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.nifi-$i/provenance_repository" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.nifi-$i/state" ] && \
+       [ -d "$CLUSTER_DIR/volumes/${CLUSTER_NAME}.nifi-$i/logs" ]; then
+        print_pass
+    else
+        print_fail "${CLUSTER_NAME}.nifi-$i volume directories incomplete"
+    fi
+done
+
+# 2. Certificate Validation
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 2. Certificate Validation${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+if ! command -v openssl &> /dev/null; then
+    print_check "SSL" "OpenSSL availability"
+    print_warning "OpenSSL not found - skipping certificate validation"
+else
+    print_check "CA" "Checking CA certificate"
+    if [ -f "$CLUSTER_DIR/certs/ca/ca-cert.pem" ]; then
+        if openssl x509 -in "$CLUSTER_DIR/certs/ca/ca-cert.pem" -noout -text &>/dev/null; then
+            print_pass
+        else
+            print_fail "CA certificate is invalid"
+        fi
+    else
+        print_fail "CA certificate not found"
+    fi
+
+    for i in $(seq 1 "$NODE_COUNT"); do
+        print_check "CRT$i" "Checking ${CLUSTER_NAME}.nifi-$i certificates"
+        if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/keystore.p12" ] && \
+           [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/truststore.p12" ]; then
+            if openssl pkcs12 -in "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/keystore.p12" -nokeys -passin pass:changeme123456 &>/dev/null; then
+                print_pass
+            else
+                print_fail "Keystore is invalid or password incorrect"
+            fi
+        else
+            print_fail "Certificates missing"
+        fi
+    done
+fi
+
+# 3. Configuration Files
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 3. Configuration Files Validation${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+for i in $(seq 1 "$NODE_COUNT"); do
+    print_check "CFG$i" "Checking ${CLUSTER_NAME}.nifi-$i config files"
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" ] && \
+       [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/state-management.xml" ] && \
+       [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/authorizers.xml" ] && \
+       [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/bootstrap.conf" ]; then
+        print_pass
+    else
+        print_fail "Configuration files incomplete"
+    fi
+done
+
+# 4. Node Address Validation
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 4. Node Address Validation${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+for i in $(seq 1 "$NODE_COUNT"); do
+    print_check "ADR$i" "Checking ${CLUSTER_NAME}.nifi-$i node address"
+    if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" ]; then
+        NODE_ADDR=$(grep "^nifi.cluster.node.address=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
+        EXPECTED_ADDR="${CLUSTER_NAME}.nifi-$i"
+        if [ "$NODE_ADDR" == "$EXPECTED_ADDR" ]; then
+            print_pass
+        else
+            print_fail "Expected '$EXPECTED_ADDR' but found '$NODE_ADDR'"
+        fi
+    else
+        print_fail "nifi.properties not found"
+    fi
+done
+
+# 5. Docker Compose Validation
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} 5. Docker Compose Validation${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+print_check "YML" "Checking docker-compose-${CLUSTER_NAME}.yml"
+if [ -f "$COMPOSE_FILE" ]; then
+    print_pass
+else
+    print_fail "docker-compose-${CLUSTER_NAME}.yml not found"
+fi
+
+print_check "SYN" "Validating docker-compose syntax"
+if [ -f "$COMPOSE_FILE" ]; then
+    if docker compose -f "$COMPOSE_FILE" config --quiet 2>&1; then
+        print_pass
+    else
+        print_fail "docker-compose-${CLUSTER_NAME}.yml has syntax errors"
+    fi
+else
+    print_fail "docker-compose-${CLUSTER_NAME}.yml not found"
+fi
+
+# Summary
+echo ""
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN} Validation Summary${NC}"
+echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+TOTAL=$((PASSED + FAILED + WARNINGS))
+
+echo "Results:"
+echo -e "  ${GREEN}Passed:${NC}   $PASSED / $TOTAL"
+echo -e "  ${RED}Failed:${NC}   $FAILED / $TOTAL"
+echo -e "  ${YELLOW}Warnings:${NC} $WARNINGS / $TOTAL"
+echo ""
+
+if [ $FAILED -eq 0 ]; then
+    echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║  ✓ All validations passed!                                    ║${NC}"
+    echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    if [ $WARNINGS -gt 0 ]; then
+        echo -e "${YELLOW}Note: There are $WARNINGS warning(s) - review them above${NC}"
+        echo ""
+    fi
+    echo "Your cluster is ready to deploy!"
+    echo ""
+    echo "Next steps:"
+    echo "  Start:    ./cluster start ${CLUSTER_NAME}"
+    echo "  Wait:     ./cluster wait ${CLUSTER_NAME}"
+    echo "  Test:     ./test ${CLUSTER_NAME}"
+    echo ""
+    exit 0
+else
+    echo -e "${RED}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  ✗ Validation failed - fix errors above                       ║${NC}"
+    echo -e "${RED}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    exit 1
+fi

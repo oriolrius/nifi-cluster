@@ -1,0 +1,336 @@
+#!/bin/bash
+# NiFi Cluster Management Tool
+# Unified interface for managing NiFi clusters
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/cluster-utils.sh"
+
+# Show usage
+show_usage() {
+    cat << EOF
+${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}
+${BLUE}║  NiFi Cluster Management Tool                                 ║${NC}
+${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}
+
+Usage: $0 <command> [cluster_name] [options]
+
+Commands:
+  list              List all available clusters
+  info <cluster>    Show detailed cluster information
+  status [cluster]  Show cluster and node status (all clusters if not specified)
+  start <cluster>   Start a cluster
+  stop <cluster>    Stop a cluster
+  restart <cluster> Restart a cluster
+  logs <cluster>    Follow logs for cluster (all nodes)
+  wait <cluster>    Wait for cluster to be ready
+  validate <cluster> Validate cluster configuration
+
+Options:
+  -h, --help       Show this help message
+
+Examples:
+  $0 list                    # List all clusters
+  $0 info cluster01          # Show cluster01 details
+  $0 status                  # Check all clusters
+  $0 status cluster01        # Check specific cluster
+  $0 start cluster01         # Start cluster01
+  $0 stop cluster02          # Stop cluster02
+  $0 logs cluster01          # Follow logs for cluster01
+  $0 wait cluster01          # Wait for cluster01 to be ready
+  $0 validate cluster01      # Validate cluster01 configuration
+
+EOF
+}
+
+# List all clusters
+cmd_list() {
+    local clusters=($(get_all_clusters))
+
+    if [ ${#clusters[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No clusters found.${NC}"
+        echo ""
+        echo "Create a cluster with:"
+        echo "  ./create-cluster.sh cluster01 1 3"
+        return 0
+    fi
+
+    echo -e "${BLUE}Available Clusters:${NC}"
+    echo ""
+
+    for cluster in "${clusters[@]}"; do
+        local status=$(get_cluster_status "$cluster")
+        local node_count=$(get_node_count "$cluster")
+        local cluster_num=$(get_cluster_num "$cluster")
+        local base_port=$(get_base_port "$cluster_num")
+
+        local status_icon
+        local status_color
+        case "$status" in
+            "running")
+                status_icon="●"
+                status_color="${GREEN}"
+                ;;
+            "stopped")
+                status_icon="○"
+                status_color="${YELLOW}"
+                ;;
+            *)
+                status_icon="✗"
+                status_color="${RED}"
+                ;;
+        esac
+
+        printf "  ${status_color}${status_icon}${NC} %-12s  %d nodes  Port: %d  Status: %s\n" \
+            "$cluster" "$node_count" "$base_port" "$status"
+    done
+}
+
+# Show cluster info
+cmd_info() {
+    local cluster_name="$1"
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        echo "Usage: $0 info <cluster_name>"
+        return 1
+    fi
+
+    if ! validate_cluster_name "$cluster_name"; then
+        return 1
+    fi
+
+    if ! cluster_exists "$cluster_name"; then
+        echo -e "${RED}Error: Cluster ${cluster_name} not found${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║  Cluster Information: ${cluster_name}${NC}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    print_cluster_info "$cluster_name"
+
+    local node_count=$(get_node_count "$cluster_name")
+    echo ""
+    echo -e "${BLUE}Nodes:${NC}"
+    for i in $(seq 1 "$node_count"); do
+        local url=$(get_cluster_url "$cluster_name" "$i")
+        local container="${cluster_name}.nifi-${i}"
+        local running=$(docker ps --filter "name=${container}" --format '{{.Names}}' | wc -l)
+
+        if [ "$running" -gt 0 ]; then
+            echo -e "  ${GREEN}●${NC} Node ${i}: ${url}/nifi (${container})"
+        else
+            echo -e "  ${YELLOW}○${NC} Node ${i}: ${url}/nifi (${container})"
+        fi
+    done
+
+    echo ""
+    echo -e "${BLUE}Management Commands:${NC}"
+    echo "  Start:   docker compose -f docker-compose-${cluster_name}.yml up -d"
+    echo "  Stop:    docker compose -f docker-compose-${cluster_name}.yml down"
+    echo "  Logs:    docker compose -f docker-compose-${cluster_name}.yml logs -f"
+    echo "  Status:  docker compose -f docker-compose-${cluster_name}.yml ps"
+}
+
+# Start cluster
+cmd_start() {
+    local cluster_name="$1"
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        return 1
+    fi
+
+    if ! cluster_exists "$cluster_name"; then
+        echo -e "${RED}Error: Cluster ${cluster_name} not found${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Starting cluster ${cluster_name}...${NC}"
+    docker compose -f "docker-compose-${cluster_name}.yml" up -d
+
+    echo ""
+    echo -e "${GREEN}✓ Cluster start command issued${NC}"
+    echo ""
+    echo "Wait for cluster to be ready:"
+    echo "  $0 wait ${cluster_name}"
+}
+
+# Stop cluster
+cmd_stop() {
+    local cluster_name="$1"
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        return 1
+    fi
+
+    if ! cluster_exists "$cluster_name"; then
+        echo -e "${RED}Error: Cluster ${cluster_name} not found${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Stopping cluster ${cluster_name}...${NC}"
+    docker compose -f "docker-compose-${cluster_name}.yml" down
+
+    echo -e "${GREEN}✓ Cluster stopped${NC}"
+}
+
+# Restart cluster
+cmd_restart() {
+    local cluster_name="$1"
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        return 1
+    fi
+
+    cmd_stop "$cluster_name" && cmd_start "$cluster_name"
+}
+
+# Show cluster logs
+cmd_logs() {
+    local cluster_name="$1"
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        return 1
+    fi
+
+    if ! cluster_exists "$cluster_name"; then
+        echo -e "${RED}Error: Cluster ${cluster_name} not found${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Following logs for cluster ${cluster_name}...${NC}"
+    echo "Press Ctrl+C to stop"
+    echo ""
+    docker compose -f "docker-compose-${cluster_name}.yml" logs -f
+}
+
+# Wait for cluster
+cmd_wait() {
+    local cluster_name="$1"
+    local timeout="${2:-180}"
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        return 1
+    fi
+
+    wait_for_cluster "$cluster_name" "$timeout"
+}
+
+# Validate cluster configuration
+cmd_validate() {
+    local cluster_name="$1"
+
+    if [ -z "$cluster_name" ]; then
+        echo -e "${RED}Error: Cluster name required${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Validating cluster ${cluster_name}...${NC}"
+    echo ""
+
+    local errors=0
+
+    # Check docker-compose file
+    if ! cluster_exists "$cluster_name"; then
+        echo -e "${RED}✗ Docker compose file not found${NC}"
+        errors=$((errors + 1))
+    else
+        echo -e "${GREEN}✓ Docker compose file exists${NC}"
+    fi
+
+    # Check configuration directories
+    local cluster_num=$(get_cluster_num "$cluster_name")
+    local node_count=$(get_node_count "$cluster_name")
+
+    for i in $(seq 1 "$node_count"); do
+        local conf_dir="clusters/${cluster_name}/conf/${cluster_name}.nifi-${i}"
+        if [ -d "$conf_dir" ]; then
+            # Check required files
+            if [ -f "$conf_dir/nifi.properties" ]; then
+                echo -e "${GREEN}✓ Node ${i} nifi.properties exists${NC}"
+            else
+                echo -e "${RED}✗ Node ${i} nifi.properties missing${NC}"
+                errors=$((errors + 1))
+            fi
+
+            if [ -f "$conf_dir/keystore.p12" ] && [ -f "$conf_dir/truststore.p12" ]; then
+                echo -e "${GREEN}✓ Node ${i} certificates exist${NC}"
+            else
+                echo -e "${RED}✗ Node ${i} certificates missing${NC}"
+                errors=$((errors + 1))
+            fi
+        else
+            echo -e "${RED}✗ Node ${i} configuration directory missing${NC}"
+            errors=$((errors + 1))
+        fi
+    done
+
+    echo ""
+    if [ $errors -eq 0 ]; then
+        echo -e "${GREEN}✓ Validation passed${NC}"
+        return 0
+    else
+        echo -e "${RED}✗ Validation failed with ${errors} error(s)${NC}"
+        return 1
+    fi
+}
+
+# Main command dispatcher
+main() {
+    if [ $# -eq 0 ]; then
+        show_usage
+        exit 0
+    fi
+
+    local command="$1"
+    shift
+
+    case "$command" in
+        list)
+            cmd_list
+            ;;
+        info)
+            cmd_info "$@"
+            ;;
+        status)
+            # Use the check-cluster.sh script
+            "${SCRIPT_DIR}/check-cluster.sh" "$@"
+            ;;
+        start)
+            cmd_start "$@"
+            ;;
+        stop)
+            cmd_stop "$@"
+            ;;
+        restart)
+            cmd_restart "$@"
+            ;;
+        logs)
+            cmd_logs "$@"
+            ;;
+        wait)
+            cmd_wait "$@"
+            ;;
+        validate)
+            cmd_validate "$@"
+            ;;
+        -h|--help|help)
+            show_usage
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown command '${command}'${NC}"
+            echo ""
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

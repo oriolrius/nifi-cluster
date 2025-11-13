@@ -81,13 +81,13 @@ echo ""
 ZK_CONNECT_STRING=""
 for i in $(seq 1 "$NODE_COUNT"); do
     if [ $i -eq 1 ]; then
-        ZK_CONNECT_STRING="zookeeper-${i}:2181"
+        ZK_CONNECT_STRING="${CLUSTER_NAME}.zookeeper-${i}:2181"
     else
-        ZK_CONNECT_STRING="${ZK_CONNECT_STRING},zookeeper-${i}:2181"
+        ZK_CONNECT_STRING="${ZK_CONNECT_STRING},${CLUSTER_NAME}.zookeeper-${i}:2181"
     fi
 done
 
-# Build proxy host string
+# Build proxy host string (with cluster namespace)
 PROXY_HOST_STRING=""
 for i in $(seq 1 "$NODE_COUNT"); do
     https_port=$((HTTPS_BASE + i - 1))
@@ -98,7 +98,7 @@ for i in $(seq 1 "$NODE_COUNT"); do
     fi
 done
 for i in $(seq 1 "$NODE_COUNT"); do
-    PROXY_HOST_STRING="${PROXY_HOST_STRING},nifi-${i}:8443"
+    PROXY_HOST_STRING="${PROXY_HOST_STRING},${CLUSTER_NAME}.nifi-${i}:8443"
 done
 
 echo -e "${YELLOW}Starting configuration generation...${NC}"
@@ -106,8 +106,8 @@ echo ""
 
 # Generate configuration for each node
 for i in $(seq 1 "$NODE_COUNT"); do
-    NODE_NAME="${CLUSTER_NAME}-nifi-${i}"    # Folder name (cluster-namespaced)
-    NODE_HOSTNAME="nifi-${i}"                # Docker hostname (simple, for DNS)
+    NODE_NAME="${CLUSTER_NAME}.nifi-${i}"    # Folder name (cluster-namespaced)
+    NODE_HOSTNAME="${CLUSTER_NAME}.nifi-${i}" # Docker hostname (cluster-namespaced, matches docker-compose)
     CONF_DIR="${OUTPUT_DIR}/${NODE_NAME}"
     HTTPS_PORT=$((HTTPS_BASE + i - 1))
     S2S_PORT=$((S2S_BASE + i - 1))
@@ -121,8 +121,15 @@ for i in $(seq 1 "$NODE_COUNT"); do
     # Copy certificates from CERTS_DIR if they exist
     if [ -d "${CERTS_DIR}/${NODE_NAME}" ]; then
         echo "  → Copying certificates from ${CERTS_DIR}/${NODE_NAME}"
-        cp "${CERTS_DIR}/${NODE_NAME}/keystore.p12" "$CONF_DIR/" 2>/dev/null || true
-        cp "${CERTS_DIR}/${NODE_NAME}/truststore.p12" "$CONF_DIR/" 2>/dev/null || true
+        if [ -f "${CERTS_DIR}/${NODE_NAME}/keystore.p12" ] && [ -f "${CERTS_DIR}/${NODE_NAME}/truststore.p12" ]; then
+            cp "${CERTS_DIR}/${NODE_NAME}/keystore.p12" "$CONF_DIR/"
+            cp "${CERTS_DIR}/${NODE_NAME}/truststore.p12" "$CONF_DIR/"
+            echo "  → ✓ Certificates copied successfully"
+        else
+            echo -e "  ${YELLOW}⚠ Warning: Certificate files not found in ${CERTS_DIR}/${NODE_NAME}${NC}"
+        fi
+    else
+        echo -e "  ${YELLOW}⚠ Warning: Certificate directory not found: ${CERTS_DIR}/${NODE_NAME}${NC}"
     fi
 
     # Generate nifi.properties
@@ -354,23 +361,31 @@ EOF
         cp "${SCRIPT_DIR}/templates/zookeeper.properties" "$CONF_DIR/"
     fi
 
-    # Copy certificates if they exist
-    CERT_SOURCE="${PROJECT_ROOT}/certs/${NODE_NAME}"
-    if [ -d "$CERT_SOURCE" ]; then
-        echo "  → Copying certificates from $CERT_SOURCE"
-        if [ -f "$CERT_SOURCE/keystore.p12" ]; then
-            cp "$CERT_SOURCE/keystore.p12" "$CONF_DIR/"
-        fi
-        if [ -f "$CERT_SOURCE/truststore.p12" ]; then
-            cp "$CERT_SOURCE/truststore.p12" "$CONF_DIR/"
-        fi
-    else
-        echo -e "  ${YELLOW}⚠ Warning: Certificate directory not found: $CERT_SOURCE${NC}"
-    fi
-
     echo -e "  ${GREEN}✓${NC} Configuration for ${NODE_NAME} completed"
     echo ""
 done
+
+# Verify certificates were copied successfully
+echo ""
+echo -e "${YELLOW}Verifying certificate deployment...${NC}"
+CERT_ERRORS=0
+for i in $(seq 1 "$NODE_COUNT"); do
+    NODE_NAME="${CLUSTER_NAME}.nifi-${i}"
+    CONF_DIR="${OUTPUT_DIR}/${NODE_NAME}"
+
+    if [ ! -f "$CONF_DIR/keystore.p12" ] || [ ! -f "$CONF_DIR/truststore.p12" ]; then
+        echo -e "  ${RED}✗ Missing certificates for ${NODE_NAME}${NC}"
+        CERT_ERRORS=$((CERT_ERRORS + 1))
+    else
+        echo -e "  ${GREEN}✓ Certificates verified for ${NODE_NAME}${NC}"
+    fi
+done
+
+if [ $CERT_ERRORS -gt 0 ]; then
+    echo ""
+    echo -e "${RED}WARNING: ${CERT_ERRORS} node(s) missing certificates!${NC}"
+    echo -e "${YELLOW}Run certificate generation: cd certs && ./generate-certs.sh ${NODE_COUNT} \$(pwd)/../${OUTPUT_DIR} ${CLUSTER_NAME}${NC}"
+fi
 
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
@@ -380,10 +395,9 @@ echo ""
 echo "Generated configurations for ${NODE_COUNT} nodes in: ${SCRIPT_DIR}"
 echo ""
 echo "Next steps:"
-echo "  1. Review generated configurations in conf/nifi-*/"
-echo "  2. Update docker-compose.yml with correct port mappings"
-echo "  3. Ensure certificates exist in certs/nifi-*/"
-echo "  4. Start cluster: docker compose up -d"
+echo "  1. Review generated configurations in ${OUTPUT_DIR}/"
+echo "  2. If certificates are missing, run: cd certs && ./generate-certs.sh ${NODE_COUNT} ${OUTPUT_DIR} ${CLUSTER_NAME}"
+echo "  3. Start cluster: docker compose -f docker-compose-${CLUSTER_NAME}.yml up -d"
 echo ""
 echo "Access URLs (after starting):"
 for i in $(seq 1 "$NODE_COUNT"); do
