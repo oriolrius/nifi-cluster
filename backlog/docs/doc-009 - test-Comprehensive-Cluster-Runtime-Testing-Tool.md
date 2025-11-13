@@ -77,33 +77,33 @@ test (Comprehensive Runtime Test Suite)
 
 ### Required Parameter
 
-| Parameter | Type | Description | Example |
-|-----------|------|-------------|---------|
+| Parameter        | Type   | Description                                         | Example                      |
+| ---------------- | ------ | --------------------------------------------------- | ---------------------------- |
 | `CLUSTER_NAME` | String | Name of running cluster to test (format: clusterXX) | `cluster01`, `cluster02` |
 
 ### Optional Flags
 
-| Flag | Description |
-|------|-------------|
+| Flag               | Description                |
+| ------------------ | -------------------------- |
 | `--help`, `-h` | Show help message and exit |
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NIFI_USERNAME` | `admin` | NiFi login username |
+| Variable          | Default            | Description         |
+| ----------------- | ------------------ | ------------------- |
+| `NIFI_USERNAME` | `admin`          | NiFi login username |
 | `NIFI_PASSWORD` | `changeme123456` | NiFi login password |
 
 ### Auto-Detected Parameters
 
-| Parameter | Source | Example |
-|-----------|--------|---------|
-| `CLUSTER_NUM` | Extracted from CLUSTER_NAME | `1` from `cluster01` |
-| `NODE_COUNT` | Counted from docker-compose file | `3` |
-| `BASE_PORT` | Calculated from CLUSTER_NUM | `30000` = 29000 + (1 × 1000) |
-| `HTTPS_BASE` | BASE_PORT + 443 | `30443` |
-| `ZK_BASE` | BASE_PORT + 181 | `30181` |
-| `CA_CERT` | `clusters/<CLUSTER_NAME>/certs/ca/ca-cert.pem` | Path to CA certificate |
+| Parameter       | Source                                           | Example                         |
+| --------------- | ------------------------------------------------ | ------------------------------- |
+| `CLUSTER_NUM` | Extracted from CLUSTER_NAME                      | `1` from `cluster01`        |
+| `NODE_COUNT`  | Counted from docker-compose file                 | `3`                           |
+| `BASE_PORT`   | Calculated from CLUSTER_NUM                      | `30000` = 29000 + (1 × 1000) |
+| `HTTPS_BASE`  | BASE_PORT + 443                                  | `30443`                       |
+| `ZK_BASE`     | BASE_PORT + 181                                  | `30181`                       |
+| `CA_CERT`     | `clusters/<CLUSTER_NAME>/certs/ca/ca-cert.pem` | Path to CA certificate          |
 
 ## Test Suites
 
@@ -112,31 +112,37 @@ test (Comprehensive Runtime Test Suite)
 **Purpose:** Verify all required tools are available
 
 **Tests:**
+
 1. **curl availability**
+
    ```bash
    command -v curl &> /dev/null
    ```
+
    - **Pass:** curl is installed
    - **Fail:** curl is not installed (required for API calls)
-
 2. **jq availability**
+
    ```bash
    command -v jq &> /dev/null
    ```
+
    - **Pass:** jq is installed
    - **Fail:** jq is not installed (required for JSON parsing)
-
 3. **docker availability**
+
    ```bash
    command -v docker &> /dev/null
    ```
+
    - **Pass:** docker is installed
    - **Fail:** docker is not installed (required for container checks)
-
 4. **CA certificate existence**
+
    ```bash
    [ -f clusters/<CLUSTER_NAME>/certs/ca/ca-cert.pem ]
    ```
+
    - **Pass:** CA certificate found
    - **Fail:** CA certificate not found (required for SSL/TLS)
 
@@ -148,6 +154,7 @@ test (Comprehensive Runtime Test Suite)
 
 **Tests:**
 For each node (1 to NODE_COUNT):
+
 ```bash
 docker ps --format '{{.Names}}\t{{.State}}' | grep "^<CLUSTER_NAME>.nifi-${i}"
 ```
@@ -156,6 +163,7 @@ docker ps --format '{{.Names}}\t{{.State}}' | grep "^<CLUSTER_NAME>.nifi-${i}"
 - **Fail:** Container is stopped, paused, or not found
 
 **Example Output:**
+
 ```
 [TEST] Checking Docker containers...
   ✓ PASS: cluster01.nifi-1 is running
@@ -171,6 +179,7 @@ docker ps --format '{{.Names}}\t{{.State}}' | grep "^<CLUSTER_NAME>.nifi-${i}"
 
 **Tests:**
 For each node (1 to NODE_COUNT):
+
 ```bash
 curl --cacert $CA_CERT -s -o /dev/null -w "%{http_code}" -L https://localhost:$PORT/nifi/
 ```
@@ -180,6 +189,7 @@ curl --cacert $CA_CERT -s -o /dev/null -w "%{http_code}" -L https://localhost:$P
 **Fail Conditions:** Returns any other HTTP status code
 
 **Example Output:**
+
 ```
 [TEST] Testing Node 1 (port 30443)...
   ✓ PASS: Web UI accessible (HTTP 200)
@@ -190,6 +200,7 @@ curl --cacert $CA_CERT -s -o /dev/null -w "%{http_code}" -L https://localhost:$P
 ```
 
 **What This Tests:**
+
 - HTTPS listener is active
 - SSL/TLS handshake succeeds
 - NiFi UI is responsive
@@ -201,6 +212,7 @@ curl --cacert $CA_CERT -s -o /dev/null -w "%{http_code}" -L https://localhost:$P
 
 **Tests:**
 For each node (1 to NODE_COUNT):
+
 ```bash
 curl --cacert $CA_CERT -s -X POST \
   https://localhost:$PORT/nifi-api/access/token \
@@ -210,14 +222,17 @@ curl --cacert $CA_CERT -s -X POST \
 **Expected:** JWT token (long base64-encoded string)
 
 **Pass Conditions:**
+
 - Token is non-empty
 - Token length > 100 characters
 
 **Fail Conditions:**
+
 - No token returned
 - Token too short (indicates error)
 
 **Example Output:**
+
 ```
 [TEST] Testing login on Node 1...
   ✓ PASS: JWT token obtained (847 chars)
@@ -228,6 +243,7 @@ curl --cacert $CA_CERT -s -X POST \
 ```
 
 **What This Tests:**
+
 - Single user authentication is configured
 - Username/password are correct
 - Token generation is working
@@ -242,6 +258,7 @@ Tokens are stored in variables: `NODE_1_TOKEN`, `NODE_2_TOKEN`, `NODE_3_TOKEN`
 
 **Tests:**
 For each node (1 to NODE_COUNT):
+
 ```bash
 curl --cacert $CA_CERT -s \
   -H "Authorization: Bearer $TOKEN" \
@@ -251,16 +268,19 @@ curl --cacert $CA_CERT -s \
 **Expected:** JSON response with `clusterSummary` object
 
 **Pass Conditions:**
+
 - Response contains valid JSON
 - `clusterSummary` field exists
 - `connectedNodes` value is present
 
 **Fail Conditions:**
+
 - No response
 - Invalid JSON
 - Missing expected fields
 
 **Example Output:**
+
 ```
 [TEST] Testing backend API on Node 1...
   ✓ PASS: Cluster summary API working (3 nodes)
@@ -271,6 +291,7 @@ curl --cacert $CA_CERT -s \
 ```
 
 **What This Tests:**
+
 - JWT token authentication works
 - REST API is responsive
 - JSON responses are properly formatted
@@ -282,6 +303,7 @@ curl --cacert $CA_CERT -s \
 
 **Test:**
 Query Node 1 for cluster summary:
+
 ```bash
 curl --cacert $CA_CERT -s \
   -H "Authorization: Bearer $TOKEN" \
@@ -289,6 +311,7 @@ curl --cacert $CA_CERT -s \
 ```
 
 **Parse Response:**
+
 ```json
 {
   "clusterSummary": {
@@ -301,15 +324,18 @@ curl --cacert $CA_CERT -s \
 ```
 
 **Pass Conditions:**
+
 - `connectedNodeCount` == `totalNodeCount`
 - `clustered` == `true`
 
 **Fail Conditions:**
+
 - Nodes not fully connected
 - Cluster mode not active
 - Missing nodes
 
 **Example Output:**
+
 ```
 [TEST] Checking cluster status...
   ✓ PASS: All nodes connected: 3 / 3
@@ -317,6 +343,7 @@ curl --cacert $CA_CERT -s \
 ```
 
 **What This Tests:**
+
 - All nodes discovered each other
 - ZooKeeper coordination working
 - Cluster election completed
@@ -330,26 +357,31 @@ curl --cacert $CA_CERT -s \
 For each ZooKeeper node (1 to NODE_COUNT):
 
 1. **Container Status:**
+
    ```bash
    docker ps --format '{{.Names}}' | grep "^<CLUSTER_NAME>.zookeeper-${i}$"
    ```
-
 2. **Four-Letter Word Test** (if `nc` available):
+
    ```bash
    echo "ruok" | nc localhost $ZK_PORT
    ```
+
    - **Expected:** `imok` response
 
 **Pass Conditions:**
+
 - Container is running
 - Responds to `ruok` with `imok` (if nc available)
 - Or just container running (if nc unavailable)
 
 **Fail Conditions:**
+
 - Container not running
 - No response to health check
 
 **Example Output:**
+
 ```
 [TEST] Testing ZooKeeper Node 1...
   ✓ PASS: ZooKeeper-1 is healthy
@@ -360,6 +392,7 @@ For each ZooKeeper node (1 to NODE_COUNT):
 ```
 
 **What This Tests:**
+
 - ZooKeeper containers are running
 - ZooKeeper is accepting connections
 - Ensemble is responsive
@@ -374,27 +407,31 @@ For each ZooKeeper node (1 to NODE_COUNT):
 For each node (1 to NODE_COUNT):
 
 1. **SSL Handshake Test:**
+
    ```bash
    curl --cacert $CA_CERT -s -o /dev/null https://localhost:$PORT/nifi/
    ```
-
 2. **Certificate Details** (if openssl available):
+
    ```bash
    echo | openssl s_client -connect localhost:$PORT -CAfile $CA_CERT 2>/dev/null | \
      openssl x509 -noout -subject -issuer
    ```
 
 **Pass Conditions:**
+
 - SSL handshake succeeds
 - Certificate validated by CA
 - Certificate details retrieved (if openssl available)
 
 **Fail Conditions:**
+
 - SSL handshake fails
 - Certificate not trusted
 - Certificate expired or invalid
 
 **Example Output:**
+
 ```
 [TEST] Testing SSL handshake on Node 1...
   ✓ PASS: SSL/TLS handshake successful
@@ -408,6 +445,7 @@ For each node (1 to NODE_COUNT):
 ```
 
 **What This Tests:**
+
 - SSL/TLS listener is configured
 - Certificates are properly installed
 - CA trust chain is valid
@@ -420,46 +458,50 @@ For each node (1 to NODE_COUNT):
 **Test Steps:**
 
 1. **Create Test Processor on Node 1:**
+
    ```bash
    # Get root process group ID
    ROOT_PG=$(curl ... /nifi-api/flow/process-groups/root | jq -r '.processGroupFlow.id')
-   
+
    # Create GenerateFlowFile processor with unique name
    PROCESSOR_NAME="ClusterReplicationTest-$(date +%s)"
    curl -X POST .../nifi-api/process-groups/$ROOT_PG/processors \
      -d '{"component": {"type": "org.apache.nifi.processors.standard.GenerateFlowFile", ...}}'
    ```
-
 2. **Wait for Replication:**
+
    ```bash
    sleep 5  # Allow time for cluster replication
    ```
-
 3. **Verify on All Nodes:**
    For each node, query:
+
    ```bash
    curl .../nifi-api/flow/process-groups/$ROOT_PG | \
      jq ".processGroupFlow.flow.processors[] | select(.component.name==\"$PROCESSOR_NAME\")"
    ```
-
 4. **Cleanup:**
+
    ```bash
    # Delete test processor
    curl -X DELETE .../nifi-api/processors/$PROCESSOR_ID?version=$VERSION
    ```
 
 **Pass Conditions:**
+
 - Processor created successfully on Node 1
 - Processor ID returned
 - Processor found on all nodes after 5 seconds
 - Processor deleted successfully
 
 **Fail Conditions:**
+
 - Cannot create processor
 - Processor not replicated to all nodes
 - Replication timeout
 
 **Example Output:**
+
 ```
 [TEST] Creating test processor on Node 1...
   ✓ PASS: Test processor created: ClusterReplicationTest-1699876543
@@ -474,6 +516,7 @@ For each node (1 to NODE_COUNT):
 ```
 
 **What This Tests:**
+
 - Flow replication is working
 - Cluster coordination via ZooKeeper
 - All nodes can modify the flow
@@ -481,6 +524,7 @@ For each node (1 to NODE_COUNT):
 - RESTful API for flow modifications
 
 **Processor Configuration:**
+
 - Type: `GenerateFlowFile` (standard processor)
 - Scheduling: 60 seconds (won't actually run)
 - Auto-terminated: Success relationship
@@ -529,12 +573,12 @@ Your cluster is fully operational!
 
 ## Exit Codes
 
-| Code | Condition | Meaning |
-|------|-----------|---------|
-| 0 | FAILED == 0 | All tests passed |
-| 1 | FAILED > 0 | One or more tests failed |
-| 1 | Invalid arguments | Cluster name missing or invalid |
-| 1 | Cluster not found | No configuration exists for specified cluster |
+| Code | Condition         | Meaning                                       |
+| ---- | ----------------- | --------------------------------------------- |
+| 0    | FAILED == 0       | All tests passed                              |
+| 1    | FAILED > 0        | One or more tests failed                      |
+| 1    | Invalid arguments | Cluster name missing or invalid               |
+| 1    | Cluster not found | No configuration exists for specified cluster |
 
 ## Usage Examples
 
@@ -545,6 +589,7 @@ Your cluster is fully operational!
 ```
 
 **Typical Output (All Pass):**
+
 ```
 ╔════════════════════════════════════════════════════════════════╗
 ║  NiFi Cluster Comprehensive Test Suite                        ║
@@ -686,6 +731,7 @@ Your cluster is fully operational!
 ```
 
 **Output (with failures):**
+
 ```
 ════════════════════════════════════════════════════════════════
  2. Container Status Check
@@ -735,6 +781,7 @@ export NIFI_PASSWORD=mysecurepass
 ```
 
 **Output:**
+
 ```
 Error: Cluster cluster99 not found
 
@@ -748,17 +795,20 @@ Available clusters:
 ### Scenario 1: Containers Not Running
 
 **Symptoms:**
+
 ```
 [TEST] Checking Docker containers...
   ✗ FAIL: cluster01.nifi-1 is exited
 ```
 
 **Causes:**
+
 - Cluster not started
 - Container crashed
 - Resource constraints
 
 **Diagnosis:**
+
 ```bash
 # Check container logs
 docker logs cluster01.nifi-1
@@ -768,6 +818,7 @@ docker ps -a | grep cluster01.nifi
 ```
 
 **Fix:**
+
 ```bash
 # Restart cluster
 docker compose -f docker-compose-cluster01.yml restart
@@ -778,17 +829,20 @@ docker compose -f docker-compose-cluster01.yml restart
 ### Scenario 2: Authentication Failures
 
 **Symptoms:**
+
 ```
 [TEST] Testing login on Node 1...
   ✗ FAIL: Failed to obtain JWT token
 ```
 
 **Causes:**
+
 - Wrong username/password
 - Single user authentication not configured
 - NiFi not fully started
 
 **Diagnosis:**
+
 ```bash
 # Check credentials in .env
 cat .env | grep NIFI_SINGLE_USER
@@ -798,6 +852,7 @@ docker logs cluster01.nifi-1 | grep -i "auth\|login"
 ```
 
 **Fix:**
+
 ```bash
 # Use correct credentials
 export NIFI_USERNAME=admin
@@ -812,18 +867,21 @@ export NIFI_PASSWORD=changeme123456
 ### Scenario 3: Cluster Not Fully Connected
 
 **Symptoms:**
+
 ```
 [TEST] Checking cluster status...
   ✗ FAIL: Cluster not fully connected: 2 / 3
 ```
 
 **Causes:**
+
 - ZooKeeper issues
 - Network connectivity problems
 - Node configuration mismatch
 - Insufficient startup time
 
 **Diagnosis:**
+
 ```bash
 # Check ZooKeeper logs
 docker logs cluster01.zookeeper-1
@@ -837,6 +895,7 @@ curl -k -u admin:changeme123456 \
 ```
 
 **Fix:**
+
 ```bash
 # Wait longer for cluster formation
 sleep 60
@@ -849,6 +908,7 @@ docker restart cluster01.nifi-3
 ### Scenario 4: Flow Replication Fails
 
 **Symptoms:**
+
 ```
 [TEST] Verifying flow replication across all nodes...
   ✓ PASS: Node 1: Processor replicated successfully
@@ -857,12 +917,14 @@ docker restart cluster01.nifi-3
 ```
 
 **Causes:**
+
 - Cluster coordination issues
 - ZooKeeper problems
 - Network partitioning
 - Replication lag (need more than 5 seconds)
 
 **Diagnosis:**
+
 ```bash
 # Check cluster connectivity
 docker logs cluster01.nifi-2 | grep -i "cluster\|replication"
@@ -872,6 +934,7 @@ docker logs cluster01.nifi-2 | grep -i "zookeeper"
 ```
 
 **Fix:**
+
 ```bash
 # Restart affected node
 docker restart cluster01.nifi-2
@@ -884,18 +947,21 @@ sleep 60
 ### Scenario 5: SSL/TLS Handshake Failures
 
 **Symptoms:**
+
 ```
 [TEST] Testing SSL handshake on Node 1...
   ✗ FAIL: SSL/TLS handshake failed
 ```
 
 **Causes:**
+
 - Certificate expired
 - CA certificate mismatch
 - Wrong certificate path
 - TLS protocol mismatch
 
 **Diagnosis:**
+
 ```bash
 # Check certificate validity
 openssl x509 -in clusters/cluster01/certs/ca/ca-cert.pem -noout -dates
@@ -905,6 +971,7 @@ openssl s_client -connect localhost:30443 -CAfile clusters/cluster01/certs/ca/ca
 ```
 
 **Fix:**
+
 ```bash
 # Regenerate certificates if needed
 cd certs
@@ -964,26 +1031,27 @@ test-cluster:
 
 ### Required
 
-| Dependency | Purpose | Install |
-|------------|---------|---------|
-| `bash` | Shell interpreter | System default |
-| `curl` | HTTP client | `apt install curl` |
-| `jq` | JSON parser | `apt install jq` |
-| `docker` | Container management | [Docker Docs](https://docs.docker.com/get-docker/) |
-| `lib/cluster-utils.sh` | Auto-detection | Local file |
+| Dependency               | Purpose              | Install                                         |
+| ------------------------ | -------------------- | ----------------------------------------------- |
+| `bash`                 | Shell interpreter    | System default                                  |
+| `curl`                 | HTTP client          | `apt install curl`                            |
+| `jq`                   | JSON parser          | `apt install jq`                              |
+| `docker`               | Container management | [Docker Docs](https://docs.docker.com/get-docker/) |
+| `lib/cluster-utils.sh` | Auto-detection       | Local file                                      |
 
 ### Optional (Enhanced Functionality)
 
-| Tool | Purpose | Fallback Behavior |
-|------|---------|-------------------|
-| `nc` (netcat) | ZooKeeper health check | Skips detailed ZK test |
-| `openssl` | Certificate validation | Skips certificate details |
+| Tool            | Purpose                | Fallback Behavior         |
+| --------------- | ---------------------- | ------------------------- |
+| `nc` (netcat) | ZooKeeper health check | Skips detailed ZK test    |
+| `openssl`     | Certificate validation | Skips certificate details |
 
 ## Performance Considerations
 
 ### Execution Time
 
 **Typical test times:**
+
 - Prerequisites: ~1 second
 - Container checks: ~1 second
 - Web UI tests: ~3 seconds (1 second per node)
@@ -999,15 +1067,16 @@ test-cluster:
 ### Optimization Tips
 
 1. **Skip slow tests for quick checks:**
+
    - Comment out Test Suite 9 (flow replication)
    - Reduces runtime by ~10 seconds
-
 2. **Parallel execution** (for multiple clusters):
+
    ```bash
    ./test cluster01 & ./test cluster02 & wait
    ```
-
 3. **Adjust replication wait time:**
+
    - Default 5 seconds may be too short for large clusters
    - Increase for slower networks: `sleep 10`
 
@@ -1016,23 +1085,24 @@ test-cluster:
 ### What Test Does NOT Check
 
 1. **Data flow execution:**
+
    - Does not start processors
    - Does not verify data processing
    - Does not test actual FlowFile routing
-
 2. **Performance testing:**
+
    - No load testing
    - No throughput measurements
    - No latency testing
-
 3. **Advanced features:**
+
    - Site-to-Site to remote clusters
    - User/group management
    - Custom processors
    - Parameter contexts
    - Version control (NiFi Registry)
-
 4. **Security audit:**
+
    - Certificate expiration dates
    - Password strength
    - Authorization policies details
@@ -1040,6 +1110,7 @@ test-cluster:
 ### For Additional Testing
 
 Use these complementary tools:
+
 - **NiFi UI:** Manual testing of flows
 - **Performance testing:** JMeter, custom load scripts
 - **Monitoring:** Prometheus + Grafana
@@ -1050,6 +1121,7 @@ Use these complementary tools:
 ### When to Test
 
 **Always test:**
+
 1. After cluster startup (before using)
 2. After cluster restart
 3. After configuration changes
@@ -1058,6 +1130,7 @@ Use these complementary tools:
 6. After infrastructure changes
 
 **Periodic testing:**
+
 - Daily health checks (automated)
 - Before major deployments
 - After system updates
@@ -1092,10 +1165,12 @@ done
 ### Problem: "CA certificate not found"
 
 **Cause:**
+
 - Certificates not generated
 - Wrong working directory
 
 **Solution:**
+
 ```bash
 # Regenerate certificates
 cd certs
@@ -1110,9 +1185,11 @@ cd /path/to/nifi-cluster
 ### Problem: "curl is not installed"
 
 **Cause:**
+
 - curl not installed on system
 
 **Solution:**
+
 ```bash
 # Ubuntu/Debian
 sudo apt-get install curl jq
@@ -1127,10 +1204,12 @@ brew install curl jq
 ### Problem: All tests timeout
 
 **Cause:**
+
 - NiFi not fully started
 - Containers not running
 
 **Solution:**
+
 ```bash
 # Check container status
 docker ps | grep cluster01
@@ -1145,13 +1224,15 @@ docker ps | grep cluster01
 ### Problem: "Cluster not fully connected" persists
 
 **Cause:**
+
 - ZooKeeper issues
 - Configuration mismatch
 - Network problems
 
 **Solution:**
+
 ```bash
-# Check ZooKeeper logs
+€€# Check ZooKeeper logs
 docker logs cluster01.zookeeper-1
 
 # Check NiFi cluster logs
@@ -1168,18 +1249,19 @@ sleep 180
 
 ## Related Scripts
 
-| Script | Relationship | When to Use |
-|--------|-------------|-------------|
-| `create-cluster.sh` | Creates cluster | Before test |
-| `validate` | Pre-deployment validation | Before starting cluster |
-| `./cluster start` | Starts cluster | Before test |
-| `./cluster wait` | Waits for readiness | Before test |
-| `check-cluster.sh` | Runtime health check | Alternative to test |
-| `delete-cluster.sh` | Removes cluster | After testing complete |
+| Script                | Relationship              | When to Use             |
+| --------------------- | ------------------------- | ----------------------- |
+| `create-cluster.sh` | Creates cluster           | Before test             |
+| `validate`          | Pre-deployment validation | Before starting cluster |
+| `./cluster start`   | Starts cluster            | Before test             |
+| `./cluster wait`    | Waits for readiness       | Before test             |
+| `check-cluster.sh`  | Runtime health check      | Alternative to test     |
+| `delete-cluster.sh` | Removes cluster           | After testing complete  |
 
 ## Summary
 
 The `test` script provides:
+
 - **Comprehensive runtime validation:** 9 test suites covering all critical areas
 - **End-to-end verification:** From SSL handshake to flow replication
 - **Auto-detection:** No need to remember cluster parameters
