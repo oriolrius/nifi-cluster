@@ -266,7 +266,7 @@ print_step $CURRENT_STEP $TOTAL_STEPS "Deleting cluster workspace"
 echo ""
 
 if [ "$EXISTS_WORKSPACE" = true ]; then
-    if rm -rf "$CLUSTER_DIR"; then
+    if sudo rm -rf "$CLUSTER_DIR"; then
         print_success "Deleted: $CLUSTER_DIR/"
         print_info "Removed certificates, configurations, and volumes"
     else

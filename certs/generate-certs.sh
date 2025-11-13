@@ -15,6 +15,14 @@ CLUSTER_NAME="${3:-default}"
 # Shared CA location (always in certs/ca/)
 SHARED_CA_DIR="$SCRIPT_DIR/ca"
 
+# Load DOMAIN from .env file if it exists (go up one directory from certs/)
+DOMAIN=""
+ENV_FILE="$SCRIPT_DIR/../.env"
+if [ -f "$ENV_FILE" ]; then
+    # Read DOMAIN from .env file (handle comments and whitespace)
+    DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d '=' -f2 | tr -d ' \r\n' || echo "")
+fi
+
 # Validate NODE_COUNT
 if ! [[ "$NODE_COUNT" =~ ^[0-9]+$ ]] || [ "$NODE_COUNT" -lt 1 ]; then
     echo "Error: NODE_COUNT must be a positive integer"
@@ -170,7 +178,37 @@ for i in $(seq 1 "$NODE_COUNT"); do
         -subj "$SUBJECT"
 
     # Create SAN configuration for this node
-    cat > "$NODE_DIR/san.cnf" <<EOF
+    # Build FQDN with domain if DOMAIN is set
+    if [ -n "$DOMAIN" ]; then
+        node_fqdn="${node_fqn}.${DOMAIN}"
+        cat > "$NODE_DIR/san.cnf" <<EOF
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = US
+ST = California
+L = San Francisco
+O = NiFi Cluster
+OU = NiFi Nodes
+CN = $node_fqn
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment, digitalSignature
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $node_fqn
+DNS.2 = $node
+DNS.3 = localhost
+DNS.4 = $node_fqdn
+IP.1 = 127.0.0.1
+EOF
+    else
+        cat > "$NODE_DIR/san.cnf" <<EOF
 [req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -195,6 +233,7 @@ DNS.2 = $node
 DNS.3 = localhost
 IP.1 = 127.0.0.1
 EOF
+    fi
 
     # Sign certificate with CA
     openssl x509 -req -days $VALIDITY_DAYS \
@@ -259,7 +298,37 @@ for i in $(seq 1 "$NODE_COUNT"); do
         -subj "$SUBJECT"
 
     # Create SAN configuration
-    cat > "$NODE_DIR/san.cnf" <<EOF
+    # Build FQDN with domain if DOMAIN is set
+    if [ -n "$DOMAIN" ]; then
+        node_fqdn="${node_fqn}.${DOMAIN}"
+        cat > "$NODE_DIR/san.cnf" <<EOF
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = US
+ST = California
+L = San Francisco
+O = NiFi Cluster
+OU = ZooKeeper Nodes
+CN = $node_fqn
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment, digitalSignature
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $node_fqn
+DNS.2 = $node
+DNS.3 = localhost
+DNS.4 = $node_fqdn
+IP.1 = 127.0.0.1
+EOF
+    else
+        cat > "$NODE_DIR/san.cnf" <<EOF
 [req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -284,6 +353,7 @@ DNS.2 = $node
 DNS.3 = localhost
 IP.1 = 127.0.0.1
 EOF
+    fi
 
     # Sign certificate with CA
     openssl x509 -req -days $VALIDITY_DAYS \

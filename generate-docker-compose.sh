@@ -1,11 +1,12 @@
 #!/bin/bash
 # Generate docker-compose.yml for NiFi cluster
-# Usage: ./generate-docker-compose.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
+# Usage: ./generate-docker-compose.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT> [REMOTE_CLUSTER_NAME] [REMOTE_NODE_COUNT] [HOST_IP]
 #
-# Example: ./generate-docker-compose.sh cluster01 1 3
+# Example: ./generate-docker-compose.sh cluster01 1 3 cluster02 3 172.25.245.23
 #   - Creates docker-compose-cluster01.yml for 3-node cluster
 #   - Base port: 29000 + (1 * 1000) = 30000
 #   - External ports: 30443-30445 (HTTPS), 30181-30183 (ZK), 30100-30102 (S2S)
+#   - Adds extra_hosts for cluster02 nodes (nifi-1, nifi-2, nifi-3) pointing to 172.25.245.23
 
 set -e
 
@@ -18,24 +19,40 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Load DOMAIN from .env file if it exists
+DOMAIN=""
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # Read DOMAIN from .env file (handle comments and whitespace)
+    DOMAIN=$(grep "^DOMAIN=" "$SCRIPT_DIR/.env" | cut -d '=' -f2 | tr -d ' \r\n' || echo "")
+fi
+
 # Validate input parameters
-if [ $# -ne 3 ]; then
+if [ $# -lt 3 ]; then
     echo -e "${RED}Error: Invalid number of arguments${NC}"
-    echo "Usage: $0 <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>"
+    echo "Usage: $0 <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT> [REMOTE_CLUSTER_NAME] [REMOTE_NODE_COUNT] [HOST_IP]"
     echo ""
     echo "Parameters:"
-    echo "  CLUSTER_NAME  - Name for the cluster (e.g., 'cluster01', 'cluster02')"
-    echo "  CLUSTER_NUM   - Cluster number for port calculation (integer >= 0)"
-    echo "  NODE_COUNT    - Number of nodes in the cluster (integer >= 1)"
+    echo "  CLUSTER_NAME         - Name for the cluster (e.g., 'cluster01', 'cluster02')"
+    echo "  CLUSTER_NUM          - Cluster number for port calculation (integer >= 0)"
+    echo "  NODE_COUNT           - Number of nodes in the cluster (integer >= 1)"
+    echo "  REMOTE_CLUSTER_NAME  - (Optional) Name of remote cluster for extra_hosts"
+    echo "  REMOTE_NODE_COUNT    - (Optional) Number of nodes in remote cluster"
+    echo "  HOST_IP              - (Optional) Host IP address for extra_hosts mapping (default: 172.25.245.23)"
     echo ""
     echo "Example: $0 cluster01 1 3"
     echo "  Creates docker-compose-cluster01.yml for a 3-node cluster with base port 30000"
+    echo ""
+    echo "Example with remote cluster: $0 cluster01 1 3 cluster02 3 172.25.245.23"
+    echo "  Same as above, but adds extra_hosts entries for cluster02 nodes"
     exit 1
 fi
 
 CLUSTER_NAME="$1"
 CLUSTER_NUM="$2"
 NODE_COUNT="$3"
+REMOTE_CLUSTER_NAME="${4:-}"
+REMOTE_NODE_COUNT="${5:-0}"
+HOST_IP="${6:-172.25.245.23}"
 
 # Validate parameters
 if ! [[ "$CLUSTER_NUM" =~ ^[0-9]+$ ]]; then
@@ -129,6 +146,14 @@ echo "  → Generating ZooKeeper ensemble (${NODE_COUNT} nodes)"
 for i in $(seq 1 "$NODE_COUNT"); do
     ZK_PORT=$((ZK_BASE + i - 1))
 
+    # Build extra_hosts entries for remote cluster nodes (ZooKeeper)
+    ZK_EXTRA_HOSTS=""
+    if [ -n "$REMOTE_CLUSTER_NAME" ] && [ "$REMOTE_NODE_COUNT" -gt 0 ]; then
+        for j in $(seq 1 "$REMOTE_NODE_COUNT"); do
+            ZK_EXTRA_HOSTS="${ZK_EXTRA_HOSTS}      - \"${REMOTE_CLUSTER_NAME}.nifi-${j}:${HOST_IP}\"\n"
+        done
+    fi
+
     cat >> "$OUTPUT_FILE" << EOF
   # ZooKeeper Node $i
   ${CLUSTER_NAME}-zookeeper-${i}:
@@ -137,6 +162,17 @@ for i in $(seq 1 "$NODE_COUNT"); do
     hostname: ${CLUSTER_NAME}.zookeeper-${i}
     networks:
       - ${CLUSTER_NAME}-network
+EOF
+
+    # Add extra_hosts if remote cluster is specified (ZooKeeper)
+    if [ -n "$ZK_EXTRA_HOSTS" ]; then
+        cat >> "$OUTPUT_FILE" << EOF
+    extra_hosts:
+EOF
+        echo -e "$ZK_EXTRA_HOSTS" >> "$OUTPUT_FILE"
+    fi
+
+    cat >> "$OUTPUT_FILE" << EOF
     ports:
       - "${ZK_PORT}:2181"
     environment:
@@ -164,7 +200,22 @@ for i in $(seq 1 "$NODE_COUNT"); do
 
     # Build proxy host for this specific node
     NODE_HTTPS_PORT=$((HTTPS_BASE + i - 1))
-    NODE_PROXY_HOST="localhost:${NODE_HTTPS_PORT},127.0.0.1:${NODE_HTTPS_PORT},${CLUSTER_NAME}.nifi-${i}:8443"
+
+    # Build FQDN if DOMAIN is set
+    if [ -n "$DOMAIN" ]; then
+        NODE_FQDN="${CLUSTER_NAME}.nifi-${i}.${DOMAIN}"
+        NODE_PROXY_HOST="localhost:${NODE_HTTPS_PORT},127.0.0.1:${NODE_HTTPS_PORT},${CLUSTER_NAME}.nifi-${i}:8443,${NODE_FQDN}:${NODE_HTTPS_PORT}"
+    else
+        NODE_PROXY_HOST="localhost:${NODE_HTTPS_PORT},127.0.0.1:${NODE_HTTPS_PORT},${CLUSTER_NAME}.nifi-${i}:8443,${CLUSTER_NAME}.nifi-${i}:${NODE_HTTPS_PORT}"
+    fi
+
+    # Build extra_hosts entries for remote cluster nodes
+    EXTRA_HOSTS=""
+    if [ -n "$REMOTE_CLUSTER_NAME" ] && [ "$REMOTE_NODE_COUNT" -gt 0 ]; then
+        for j in $(seq 1 "$REMOTE_NODE_COUNT"); do
+            EXTRA_HOSTS="${EXTRA_HOSTS}      - \"${REMOTE_CLUSTER_NAME}.nifi-${j}:${HOST_IP}\"\n"
+        done
+    fi
 
     cat >> "$OUTPUT_FILE" << EOF
   # NiFi Cluster Node $i
@@ -174,7 +225,17 @@ for i in $(seq 1 "$NODE_COUNT"); do
     hostname: ${CLUSTER_NAME}.nifi-${i}
     networks:
       - ${CLUSTER_NAME}-network
-      - inter-cluster-network
+EOF
+
+    # Add extra_hosts if remote cluster is specified
+    if [ -n "$EXTRA_HOSTS" ]; then
+        cat >> "$OUTPUT_FILE" << EOF
+    extra_hosts:
+EOF
+        echo -e "$EXTRA_HOSTS" >> "$OUTPUT_FILE"
+    fi
+
+    cat >> "$OUTPUT_FILE" << EOF
     ports:
       - "${HTTPS_PORT}:8443"   # HTTPS UI
       - "${S2S_PORT}:10000" # Site-to-Site
@@ -232,8 +293,6 @@ networks:
   ${CLUSTER_NAME}-network:
     driver: bridge
     enable_ipv6: false
-  inter-cluster-network:
-    external: true
 EOF
 
 echo ""
@@ -247,6 +306,14 @@ echo "Services created:"
 echo "  - ${NODE_COUNT} ZooKeeper nodes (${CLUSTER_NAME}-zookeeper-1 to ${CLUSTER_NAME}-zookeeper-${NODE_COUNT})"
 echo "  - ${NODE_COUNT} NiFi nodes (${CLUSTER_NAME}-nifi-1 to ${CLUSTER_NAME}-nifi-${NODE_COUNT})"
 echo "  - Network: ${CLUSTER_NAME}-network"
+if [ -n "$REMOTE_CLUSTER_NAME" ] && [ "$REMOTE_NODE_COUNT" -gt 0 ]; then
+    echo ""
+    echo "Cross-cluster configuration:"
+    echo "  - Remote cluster: ${REMOTE_CLUSTER_NAME}"
+    echo "  - Remote nodes: ${REMOTE_NODE_COUNT}"
+    echo "  - Host IP for extra_hosts: ${HOST_IP}"
+    echo "  - All services have extra_hosts entries for ${REMOTE_CLUSTER_NAME}.nifi-1 through ${REMOTE_CLUSTER_NAME}.nifi-${REMOTE_NODE_COUNT}"
+fi
 echo ""
 echo "Access URLs:"
 for i in $(seq 1 "$NODE_COUNT"); do
