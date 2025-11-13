@@ -3,18 +3,43 @@ id: doc-006
 title: create-cluster.sh - Complete Architecture Documentation
 type: other
 created_date: '2025-11-13 14:07'
-updated_date: '2025-11-13 15:07'
+updated_date: '2025-11-13 15:45'
 ---
 # create-cluster.sh - Complete Architecture Documentation
 
 ## Overview
 
-`create-cluster.sh` is the master orchestration script that automates the complete setup of a NiFi cluster including ZooKeeper ensemble, SSL/TLS certificates, configuration files, and Docker Compose orchestration.
+`lib/create-cluster.sh` is the master orchestration script that automates the complete setup of a NiFi cluster including ZooKeeper ensemble, SSL/TLS certificates, configuration files, and Docker Compose orchestration.
+
+**Note:** This script is now located in `lib/create-cluster.sh` and is primarily invoked through the unified `cluster` CLI wrapper. See doc-010 for the recommended user-facing interface.
+
+## Invocation Methods
+
+### Primary Method (Recommended)
+```bash
+./cluster create <CLUSTER_NAME> [NODE_COUNT]
+```
+The `cluster` CLI automatically:
+- Validates cluster name pattern `[text][01-10]`
+- Extracts cluster number from last 2 digits
+- Validates cluster number is between 1-10
+- Defaults NODE_COUNT to 3 if not specified
+- Calls `lib/create-cluster.sh` with proper parameters
+
+### Direct Method (Advanced)
+```bash
+./lib/create-cluster.sh <CLUSTER_NAME> <CLUSTER_NUM> <NODE_COUNT>
+```
+Requires manual specification of all three parameters.
 
 ## Script Hierarchy & Dependency Tree
 
 ```
-create-cluster.sh (Master Orchestrator)
+lib/create-cluster.sh (Master Orchestrator)
+├── Invoked by: cluster CLI (cmd_create function)
+├── Location: lib/ subdirectory (not project root)
+├── SCRIPT_DIR: Resolves to parent directory (..)
+│
 ├── Prerequisites Validation
 │   ├── Docker installation check
 │   ├── Docker Compose availability check
@@ -197,8 +222,24 @@ create-cluster.sh (Master Orchestrator)
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
 | `CLUSTER_NAME` | String | Descriptive cluster identifier | `cluster01`, `cluster02` |
-| `CLUSTER_NUM` | Integer ≥ 0 | Numeric cluster identifier for port calculation | `1`, `2`, `3` |
+| `CLUSTER_NUM` | Integer ≥ 1 | Numeric cluster identifier for port calculation (1-10 when using cluster CLI) | `1`, `2`, `3` |
 | `NODE_COUNT` | Integer ≥ 1 | Number of nodes in cluster (both NiFi and ZooKeeper) | `3`, `5` |
+
+### Cluster Naming Convention (via cluster CLI)
+
+When using `./cluster create`, the cluster name must follow pattern: `[text][01-10]`
+
+**Valid Examples:**
+- `cluster01` → Cluster #1, ports 30xxx
+- `cluster05` → Cluster #5, ports 34xxx
+- `production10` → Cluster #10, ports 39xxx
+- `test03` → Cluster #3, ports 32xxx
+
+**Invalid Examples:**
+- `cluster1` → Only one digit (must be two)
+- `cluster11` → Cluster number >10
+- `cluster_01` → Contains underscore
+- `01cluster` → Starts with digits
 
 ### Port Calculation Formula
 
@@ -215,7 +256,7 @@ Load Balance:        BASE_PORT + 342 (all nodes)
 **Examples:**
 - `cluster01` (CLUSTER_NUM=1): BASE_PORT=30000, HTTPS: 30443-30445, ZK: 30181-30183
 - `cluster02` (CLUSTER_NUM=2): BASE_PORT=31000, HTTPS: 31443-31445, ZK: 31181-31183
-- `cluster03` (CLUSTER_NUM=3): BASE_PORT=32000, HTTPS: 32443-32445, ZK: 32181-32183
+- `cluster10` (CLUSTER_NUM=10): BASE_PORT=39000, HTTPS: 39443-39445, ZK: 39181-39183
 
 ## Configuration Files & Environment Variables
 
@@ -395,12 +436,29 @@ clusters/<CLUSTER_NAME>/
 
 ## Usage Examples
 
-### Single Cluster (3 nodes)
+### Using cluster CLI (Recommended)
+
 ```bash
-./create-cluster.sh cluster01 1 3
+# Create with default 3 nodes
+./cluster create cluster01
+
+# Create with 5 nodes
+./cluster create production05 5
 ```
 
-This creates:
+### Direct Script Invocation (Advanced)
+
+```bash
+# First cluster (3 nodes)
+./lib/create-cluster.sh cluster01 1 3
+
+# Second cluster (5 nodes)
+./lib/create-cluster.sh production05 5 5
+```
+
+### What Gets Created
+
+For `./cluster create cluster01`:
 - 3 ZooKeeper nodes: cluster01.zookeeper-{1,2,3}
 - 3 NiFi nodes: cluster01.nifi-{1,2,3}
 - HTTPS ports: 30443, 30444, 30445
@@ -408,20 +466,6 @@ This creates:
 - S2S ports: 30100, 30101, 30102
 - Network: cluster01-network
 - Workspace: clusters/cluster01/
-
-### Second Cluster (3 nodes) for Site-to-Site
-```bash
-./create-cluster.sh cluster02 2 3
-```
-
-This creates:
-- 3 ZooKeeper nodes: cluster02.zookeeper-{1,2,3}
-- 3 NiFi nodes: cluster02.nifi-{1,2,3}
-- HTTPS ports: 31443, 31444, 31445
-- ZooKeeper ports: 31181, 31182, 31183
-- S2S ports: 31100, 31101, 31102
-- Network: cluster02-network (isolated from cluster01)
-- Workspace: clusters/cluster02/
 
 ### Cross-Cluster Communication
 
@@ -472,27 +516,27 @@ For Site-to-Site between clusters, you need:
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| Port conflicts | Another service using ports | Change CLUSTER_NUM or stop conflicting service |
+| Port conflicts | Another service using ports | Change cluster number or stop conflicting service |
 | Certificate validation fails | DOMAIN mismatch or missing SANs | Ensure DOMAIN in .env matches DNS/extra_hosts |
 | Cross-cluster S2S fails | FQDN not resolvable | Check DOMAIN in .env, regenerate configs, verify extra_hosts |
 | Permission denied on volumes | Incorrect ownership | Run: `sudo chown -R 1000:1000 clusters/<CLUSTER_NAME>/volumes/` |
-| NiFi won't start | Configuration errors | Check logs: `docker compose -f docker-compose-<CLUSTER_NAME>.yml logs <CLUSTER_NAME>-nifi-1` |
+| NiFi won't start | Configuration errors | Check logs: `./cluster logs <CLUSTER_NAME>` |
 | Cluster nodes not connecting | ZooKeeper issues | Verify ZK ensemble: `echo stat | nc localhost <ZK_PORT>` |
 
 ### Validation Commands
 
 ```bash
+# Validate configuration before starting
+./cluster validate cluster01
+
 # Check cluster status
-docker compose -f docker-compose-cluster01.yml ps
+./cluster status cluster01
 
-# View NiFi logs
-docker compose -f docker-compose-cluster01.yml logs -f cluster01-nifi-1
+# View logs
+./cluster logs cluster01
 
-# Check ZooKeeper ensemble
-echo stat | nc localhost 30181
-
-# Test NiFi API
-curl -k https://localhost:30443/nifi
+# Test cluster health
+./cluster test cluster01
 
 # Verify certificates
 openssl x509 -in clusters/cluster01/certs/cluster01.nifi-1/server-cert.pem -noout -text
@@ -509,47 +553,57 @@ curl -k -s --cert clusters/cluster01/certs/cluster01.nifi-1/server-cert.pem \
 1. **Review .env file** and update passwords if needed
 2. **Start the cluster:**
    ```bash
-   docker compose -f docker-compose-cluster01.yml up -d
+   ./cluster start cluster01
    ```
-3. **Monitor startup (2-3 minutes):**
+3. **Wait for cluster readiness:**
    ```bash
-   docker compose -f docker-compose-cluster01.yml logs -f
+   ./cluster wait cluster01
    ```
-4. **Access NiFi UI:**
+4. **Validate cluster health:**
+   ```bash
+   ./cluster test cluster01
+   ```
+5. **Access NiFi UI:**
    - Node 1: https://localhost:30443/nifi
    - Node 2: https://localhost:30444/nifi
    - Node 3: https://localhost:30445/nifi
-5. **Login with credentials from .env:**
+6. **Login with credentials from .env:**
    - Username: admin (default)
    - Password: changeme123456 (default)
 
-## Related Scripts
+## Related Scripts & Documentation
 
-### Utility Scripts (not called by create-cluster.sh)
-- `lib/check-cluster.sh` - Check cluster health and status
-- `delete-cluster.sh` - Remove cluster and clean up resources
-- `check-nodes.sh` - Check individual node status
-- `lib/verify-s2s-port.sh` - Verify Site-to-Site endpoint
-- `lib/debug-api.sh` - Debug NiFi API connectivity
-- `lib/full-node-status.sh` - Comprehensive node diagnostics
+### Related Scripts
+- `cluster` - Unified CLI wrapper (doc-010) - **Primary user interface**
+- `lib/cluster-utils.sh` - Utility functions
+- `lib/check-cluster.sh` - Health checking
+- `lib/generate-docker-compose.sh` - Docker Compose generation
+- `certs/generate-certs.sh` - Certificate generation
+- `conf/generate-cluster-configs.sh` - Configuration generation
 
-### Management Commands
+### Management via cluster CLI
 
 ```bash
+# Create cluster
+./cluster create cluster01
+
 # Start cluster
-docker compose -f docker-compose-cluster01.yml up -d
+./cluster start cluster01
 
-# Stop cluster
-docker compose -f docker-compose-cluster01.yml down
-
-# View logs
-docker compose -f docker-compose-cluster01.yml logs -f
+# Wait for readiness
+./cluster wait cluster01
 
 # Check status
-docker compose -f docker-compose-cluster01.yml ps
+./cluster status cluster01
 
-# Restart specific node
-docker compose -f docker-compose-cluster01.yml restart cluster01-nifi-1
+# View logs
+./cluster logs cluster01
+
+# Stop cluster
+./cluster stop cluster01
+
+# Validate configuration
+./cluster validate cluster01
 ```
 
 ## Files Modified/Created
@@ -564,6 +618,27 @@ docker compose -f docker-compose-cluster01.yml restart cluster01-nifi-1
 ### Read (Configuration Sources)
 - `.env` - Environment variables (DOMAIN, credentials, versions)
 - `conf/templates/` - Configuration file templates (optional)
+
+## Implementation Notes
+
+### Script Location
+- **File:** `lib/create-cluster.sh`
+- **SCRIPT_DIR:** Resolves to parent directory: `$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)`
+- **Called from:** `cluster` CLI (cluster:128)
+
+### Integration with cluster CLI
+The `cluster` CLI provides wrapper functionality (cluster:48-129):
+1. Validates cluster name pattern `[a-zA-Z]+[0-9]{2}`
+2. Extracts cluster number from last 2 digits
+3. Validates cluster number is 1-10
+4. Validates node count is positive integer
+5. Checks if cluster already exists
+6. Calls `lib/create-cluster.sh` with proper parameters
+
+### Cluster Number Constraints
+- **Via cluster CLI:** 1-10 (enforced by naming pattern validation)
+- **Direct script:** 0+ (no upper limit, but limited by port availability)
+- **Port range:** cluster01-cluster10 uses ports 30000-39999
 
 ## Performance Considerations
 
@@ -587,16 +662,17 @@ docker compose -f docker-compose-cluster01.yml restart cluster01-nifi-1
 
 ## Best Practices
 
-1. **Always set DOMAIN in .env** for cross-cluster S2S
-2. **Use unique CLUSTER_NUM** to avoid port conflicts
-3. **Change default passwords** before production use
-4. **Backup certs/ca/** - critical for all clusters
-5. **Monitor disk usage** on volume directories
-6. **Use load balancer** for UI access in production
-7. **Implement TLS everywhere** (already enabled)
-8. **Regular backups** of clusters/<CLUSTER_NAME>/ directories
-9. **Version control** docker-compose and .env files
-10. **Document cluster topology** and dependencies
+1. **Use cluster CLI** instead of direct script invocation
+2. **Always set DOMAIN in .env** for cross-cluster S2S
+3. **Follow naming convention** [text][01-10] for cluster names
+4. **Change default passwords** before production use
+5. **Backup certs/ca/** - critical for all clusters
+6. **Monitor disk usage** on volume directories
+7. **Use load balancer** for UI access in production
+8. **Implement TLS everywhere** (already enabled)
+9. **Regular backups** of clusters/<CLUSTER_NAME>/ directories
+10. **Version control** docker-compose and .env files
+11. **Document cluster topology** and dependencies
 
 ## References
 
@@ -605,3 +681,4 @@ docker compose -f docker-compose-cluster01.yml restart cluster01-nifi-1
 - [NiFi Site-to-Site Protocol](https://nifi.apache.org/docs/nifi-docs/html/user-guide.html#site-to-site)
 - [Docker Compose Reference](https://docs.docker.com/compose/compose-file/)
 - [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/current/zookeeperAdmin.html)
+- doc-010: cluster CLI Documentation
