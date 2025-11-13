@@ -26,11 +26,11 @@ cluster (Unified CLI Orchestrator)
 ├── Dependencies
 │   ├── lib/cluster-utils.sh (utility functions)
 │   ├── lib/check-cluster.sh (health checking)
-│   ├── create-cluster.sh (cluster creation)
-│   ├── delete-cluster.sh (cluster deletion)
+│   ├── lib/create-cluster.sh (cluster creation)
+│   ├── lib/delete-cluster.sh (cluster deletion)
+│   ├── lib/generate-docker-compose.sh (compose regeneration)
 │   ├── validate (configuration validation)
 │   ├── test (runtime testing)
-│   ├── lib/generate-docker-compose.sh (compose regeneration)
 │   └── Docker Compose (container orchestration)
 │
 ├── Command Parsing
@@ -240,13 +240,13 @@ Completely removes cluster including:
 ./cluster delete cluster01 --force     # Delete without confirmation
 ```
 
-**Delegates to:** `delete-cluster.sh`
+**Delegates to:** `lib/delete-cluster.sh` (doc-007)
 
 **Exit Codes:**
 - 0 - Success
 - 1 - Deletion failed or cancelled
 
-**Note:** Shared CA (certs/ca/) is preserved
+**Note:** Shared CA (certs/ca/) is preserved for reuse by other clusters
 
 ---
 
@@ -1113,12 +1113,12 @@ vim .env
 ├── cluster                          # Main CLI script (this)
 ├── lib/
 │   ├── cluster-utils.sh            # Utility functions
-│   └── check-cluster.sh            # Health checking
-├── create-cluster.sh               # Cluster creation
-├── delete-cluster.sh               # Cluster deletion
+│   ├── check-cluster.sh            # Health checking
+│   ├── create-cluster.sh           # Cluster creation
+│   ├── delete-cluster.sh           # Cluster deletion
+│   └── generate-docker-compose.sh  # Compose generation
 ├── validate                        # Configuration validation
 ├── test                            # Runtime testing
-├── lib/generate-docker-compose.sh      # Compose generation
 └── docker-compose-cluster*.yml     # Generated compose files
 ```
 
@@ -1332,11 +1332,13 @@ tar -czf "${CLUSTER}-backup-$(date +%Y%m%d).tar.gz" "clusters/$CLUSTER/"
 
 ## Related Documentation
 
-- `create-cluster.sh` - Cluster creation (doc-006)
-- `delete-cluster.sh` - Cluster deletion (doc-007)
+- `lib/create-cluster.sh` - Cluster creation (doc-006)
+- `lib/delete-cluster.sh` - Cluster deletion (doc-007)
 - `validate` - Configuration validation (doc-008)
 - `test` - Runtime testing (doc-009)
 - `lib/cluster-utils.sh` - Utility functions
+- `lib/check-cluster.sh` - Health checking
+- `lib/generate-docker-compose.sh` - Compose file generation
 
 ## Summary
 
