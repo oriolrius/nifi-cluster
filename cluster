@@ -7,46 +7,86 @@ source "${SCRIPT_DIR}/lib/cluster-utils.sh"
 
 # Show usage
 show_usage() {
+    echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║  NiFi Cluster Management Tool                                 ║${NC}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${GREEN}Quick Start - Typical Workflow:${NC}"
+    echo -e "  ${YELLOW}1.${NC} create  → Create cluster configuration and certificates"
+    echo -e "  ${YELLOW}2.${NC} start   → Start all containers (ZooKeeper + NiFi nodes)"
+    echo -e "  ${YELLOW}3.${NC} wait    → Wait for cluster to be fully ready (~2 minutes)"
+    echo -e "  ${YELLOW}4.${NC} status  → Check node status and get access URLs"
+    echo -e "  ${YELLOW}5.${NC} test    → Run comprehensive validation tests"
     cat << EOF
-${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}
-${BLUE}║  NiFi Cluster Management Tool                                 ║${NC}
-${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}
 
 Usage: $0 <command> [cluster_name] [options]
 
-Commands:
+EOF
+    echo -e "${GREEN}Cluster Lifecycle:${NC}"
+    cat << EOF
   create <cluster> [nodes]  Create a new cluster (default: 3 nodes)
-  list              List all available clusters
-  info <cluster>    Show detailed cluster information
-  status [cluster]  Show cluster and node status (all clusters if not specified)
-  start <cluster>   Start a cluster
-  stop <cluster>    Stop a cluster
-  restart <cluster> Restart a cluster
-  delete <cluster> [--force]  Delete a cluster (removes everything)
-  logs <cluster>    Follow logs for cluster (all nodes)
-  wait <cluster>    Wait for cluster to be ready
-  validate <cluster> Validate cluster configuration
-  test <cluster>    Run comprehensive cluster tests
+  start <cluster>           Start a cluster
+  restart <cluster>         Restart a cluster
+  stop <cluster>            Stop a cluster
+  delete <cluster> [--force] Delete a cluster (removes everything)
 
-Options:
-  -h, --help       Show this help message
+EOF
+    echo -e "${GREEN}Monitoring & Validation:${NC}"
+    cat << EOF
+  status [cluster]          Show cluster and node status (all clusters if not specified)
+  wait <cluster>            Wait for cluster to be ready
+  validate <cluster>        Validate cluster configuration
+  test <cluster>            Run comprehensive cluster tests
+  logs <cluster>            Follow logs for cluster (all nodes)
 
-Examples:
+EOF
+    echo -e "${GREEN}Information:${NC}"
+    cat << EOF
+  list                      List all available clusters
+  info <cluster>            Show detailed cluster information
+
+EOF
+    echo -e "${GREEN}Options:${NC}"
+    cat << EOF
+  -h, --help               Show this help message
+
+EOF
+    echo -e "${GREEN}Examples:${NC}"
+    echo -e "  ${YELLOW}# Complete workflow - From creation to testing${NC}"
+    cat << EOF
+  $0 create cluster01        # 1. Create cluster01 with 3 nodes
+  $0 start cluster01         # 2. Start all containers
+  $0 wait cluster01          # 3. Wait for cluster to be ready (~2 min)
+  $0 status cluster01        # 4. Check status and get URLs
+  $0 test cluster01          # 5. Run comprehensive tests
+
+EOF
+    echo -e "  ${YELLOW}# Create and start a new cluster${NC}"
+    cat << EOF
   $0 create cluster01        # Create cluster01 with 3 nodes (default)
+  $0 start cluster01         # Start cluster01
+
+EOF
+    echo -e "  ${YELLOW}# Create a large cluster${NC}"
+    cat << EOF
   $0 create production05 5   # Create production05 with 5 nodes
+  $0 start production05      # Start the cluster
+
+EOF
+    echo -e "  ${YELLOW}# Monitor and manage${NC}"
+    cat << EOF
   $0 list                    # List all clusters
-  $0 info cluster01          # Show cluster01 details
   $0 status                  # Check all clusters
   $0 status cluster01        # Check specific cluster
-  $0 start cluster01         # Start cluster01
-  $0 stop cluster02          # Stop cluster02
-  $0 restart cluster01       # Restart cluster01
-  $0 delete cluster01        # Delete cluster01 (with confirmation)
-  $0 delete cluster02 --force  # Delete cluster02 (no confirmation)
+  $0 info cluster01          # Show cluster01 details
   $0 logs cluster01          # Follow logs for cluster01
-  $0 wait cluster01          # Wait for cluster01 to be ready
-  $0 validate cluster01      # Validate cluster01 configuration
-  $0 test cluster01          # Run comprehensive tests on cluster01
+
+EOF
+    echo -e "  ${YELLOW}# Cleanup${NC}"
+    cat << EOF
+  $0 stop cluster02          # Stop cluster02
+  $0 delete cluster01        # Delete cluster01 (with confirmation)
+  $0 delete cluster02 --force # Delete cluster02 (no confirmation)
 
 EOF
 }
