@@ -8,7 +8,9 @@ created_date: '2025-11-13 14:20'
 
 ## Overview
 
-`delete-cluster.sh` is a safe cluster removal script that systematically deletes all cluster resources including Docker containers, networks, configuration files, and runtime data while **preserving** the shared Certificate Authority (CA) for use by other clusters.
+`lib/delete-cluster.sh` is a safe cluster removal script that systematically deletes all cluster resources including Docker containers, networks, configuration files, and runtime data while **preserving** the shared Certificate Authority (CA) for use by other clusters.
+
+**Integration:** This script is integrated with the main `cluster` CLI tool. Users can invoke it via `./cluster delete <cluster_name> [--force]` for a unified management experience, or call the script directly at `lib/delete-cluster.sh`.
 
 ## Purpose
 
@@ -20,13 +22,13 @@ Provides a safe, auditable, and reversible (with confirmation) way to remove NiF
 ## Script Architecture
 
 ```
-delete-cluster.sh (Standalone Script)
+lib/delete-cluster.sh (Integrated with cluster CLI)
 ├── Argument Parsing
 │   ├── CLUSTER_NAME (required)
 │   └── --force/-f flag (optional)
 │
 ├── Validation
-│   ├── Cluster name format validation (must match: clusterXX)
+│   ├── Cluster name format validation (must match: [text][01-10])
 │   └── Resource existence checks
 │
 ├── Resource Discovery
@@ -47,13 +49,27 @@ delete-cluster.sh (Standalone Script)
     └── Step 4: Verify shared CA preservation
 ```
 
+## Access Methods
+
+**Preferred Method (via cluster CLI):**
+```bash
+./cluster delete <CLUSTER_NAME> [--force]
+```
+
+**Direct Script Access:**
+```bash
+./lib/delete-cluster.sh <CLUSTER_NAME> [--force]
+```
+
+Both methods provide identical functionality. The cluster CLI method is recommended for consistency with other cluster management operations.
+
 ## Parameters & Options
 
 ### Required Parameter
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `CLUSTER_NAME` | String | Name of cluster to delete (format: clusterXX) | `cluster01`, `cluster02` |
+| `CLUSTER_NAME` | String | Name of cluster to delete (format: [text][01-10]) | `cluster01`, `production05`, `test03` |
 
 ### Optional Flags
 
@@ -64,10 +80,19 @@ delete-cluster.sh (Standalone Script)
 
 ### Cluster Name Validation
 
-The script enforces strict naming format:
-- **Pattern:** `clusterXX` where XX is exactly 2 digits
-- **Valid:** `cluster01`, `cluster02`, `cluster99`
-- **Invalid:** `cluster1`, `cluster`, `clstr01`, `cluster001`
+The script enforces flexible naming format matching the cluster CLI pattern:
+- **Pattern:** `[a-zA-Z]+[0-9]{2}` where text prefix is followed by exactly 2 digits (01-10)
+- **Cluster Number:** Last 2 digits must represent cluster number 1-10
+- **Valid Examples:**
+  - `cluster01`, `cluster05`, `cluster10` (cluster #1, #5, #10)
+  - `production01`, `production05` (production clusters)
+  - `test01`, `staging02`, `dev03` (various environments)
+- **Invalid Examples:**
+  - `cluster1` (only one digit)
+  - `cluster11` (cluster #11, maximum is 10)
+  - `cluster_01` (contains underscore)
+  - `01cluster` (starts with digits)
+  - `cluster00` (cluster #0, minimum is 1)
 
 ## Execution Flow
 
@@ -285,10 +310,15 @@ fi
 
 ## Usage Examples
 
-### Example 1: Delete with Confirmation (Safe)
+### Example 1: Delete with Confirmation (Safe) - Recommended CLI Method
 
 ```bash
-./delete-cluster.sh cluster01
+./cluster delete cluster01
+```
+
+**Alternative (Direct Script):**
+```bash
+./lib/delete-cluster.sh cluster01
 ```
 
 **Output:**
@@ -386,8 +416,14 @@ Remaining clusters:
 
 ### Example 2: Force Delete (No Confirmation)
 
+**Recommended CLI Method:**
 ```bash
-./delete-cluster.sh cluster02 --force
+./cluster delete cluster02 --force
+```
+
+**Alternative (Direct Script):**
+```bash
+./lib/delete-cluster.sh cluster02 --force
 ```
 
 **Behavior:**
@@ -399,7 +435,7 @@ Remaining clusters:
 ### Example 3: Delete Non-Existent Cluster
 
 ```bash
-./delete-cluster.sh cluster99
+./cluster delete cluster99
 ```
 
 **Output:**
@@ -417,14 +453,17 @@ Checking cluster resources...
 ### Example 4: Invalid Cluster Name
 
 ```bash
-./delete-cluster.sh cluster1    # Missing leading zero
-./delete-cluster.sh myapp      # Wrong format
+./cluster delete cluster1      # Missing leading zero
+./cluster delete cluster11     # Cluster number > 10
+./cluster delete myapp         # Wrong format
 ```
 
 **Output:**
 ```
   ✗ Error: Invalid cluster name format
-  ℹ Cluster name must follow pattern: clusterXX (e.g., cluster01, cluster02)
+  ℹ Cluster name must follow pattern: [text][01-10]
+  ℹ Valid examples: cluster01, production05, test03
+  ℹ Invalid examples: cluster1 (one digit), cluster11 (>10), cluster_01 (underscore)
 ```
 
 **Result:**
@@ -606,15 +645,44 @@ docker compose down --volumes
 
 | Script | Relationship | Purpose |
 |--------|-------------|---------|
-| `create-cluster.sh` | Inverse operation | Create cluster → Delete cluster lifecycle |
-| `check-cluster.sh` | Pre-deletion verification | Verify cluster status before deletion |
-| `lib/cluster-utils.sh` | Not used | delete-cluster.sh is standalone |
+| `cluster` | Primary interface | Unified CLI wrapper for all cluster operations |
+| `lib/create-cluster.sh` | Inverse operation | Create cluster → Delete cluster lifecycle |
+| `lib/check-cluster.sh` | Pre-deletion verification | Verify cluster status before deletion |
+| `lib/cluster-utils.sh` | Not used | delete-cluster.sh validates independently |
 
-### Workflow Example
+### Workflow Example (Using Cluster CLI - Recommended)
 
 ```bash
 # 1. Create cluster
-./create-cluster.sh cluster01 1 3
+./cluster create cluster01 3
+
+# 2. Start cluster
+./cluster start cluster01
+
+# 3. Wait for readiness
+./cluster wait cluster01
+
+# 4. Use cluster (flows, data processing, etc.)
+# Access at https://localhost:30443/nifi
+
+# 5. Check cluster status
+./cluster status cluster01
+
+# 6. Stop cluster temporarily
+./cluster stop cluster01
+
+# 7. Decide to permanently remove
+./cluster delete cluster01
+
+# 8. Create new cluster with same ports
+./cluster create cluster01 3
+```
+
+### Workflow Example (Direct Script Access)
+
+```bash
+# 1. Create cluster
+./lib/create-cluster.sh cluster01 1 3
 
 # 2. Use cluster (flows, data processing, etc.)
 docker compose -f docker-compose-cluster01.yml up -d
@@ -626,18 +694,33 @@ docker compose -f docker-compose-cluster01.yml up -d
 docker compose -f docker-compose-cluster01.yml down
 
 # 5. Decide to permanently remove
-./delete-cluster.sh cluster01
+./lib/delete-cluster.sh cluster01
 
 # 6. Create new cluster with same ports
-./create-cluster.sh cluster01 1 3
+./lib/create-cluster.sh cluster01 1 3
 ```
 
 ## Command-Line Interface
 
-### Help Output
+### Help Output (Cluster CLI)
 
 ```bash
-./delete-cluster.sh --help
+./cluster delete --help
+# or
+./cluster --help  # Shows all commands including delete
+```
+
+The delete command is integrated into the main cluster CLI. See the cluster CLI help for full usage.
+
+**Key Delete Command Usage:**
+```bash
+./cluster delete <CLUSTER_NAME> [--force]
+```
+
+### Help Output (Direct Script Access)
+
+```bash
+./lib/delete-cluster.sh --help
 ```
 
 ```
@@ -651,18 +734,18 @@ Safely removes a cluster including:
 IMPORTANT: The shared CA (certs/ca/) is NEVER deleted.
 
 Usage:
-  ./delete-cluster.sh <CLUSTER_NAME> [--force]
+  ./lib/delete-cluster.sh <CLUSTER_NAME> [--force]
 
 Arguments:
-  CLUSTER_NAME    Name of the cluster to delete (e.g., cluster01)
+  CLUSTER_NAME    Name of the cluster to delete (e.g., cluster01, production05)
 
 Options:
   --force, -f     Skip confirmation prompt
   --help, -h      Show this help message
 
 Examples:
-  ./delete-cluster.sh cluster01                 # Delete cluster01 (with confirmation)
-  ./delete-cluster.sh cluster02 --force         # Delete cluster02 (no confirmation)
+  ./lib/delete-cluster.sh cluster01                 # Delete cluster01 (with confirmation)
+  ./lib/delete-cluster.sh cluster02 --force         # Delete cluster02 (no confirmation)
 ```
 
 ### Exit Codes
@@ -894,19 +977,24 @@ du -sh clusters/ certs/ volumes/
 
 ## Related Documentation
 
-- `create-cluster.sh` - Inverse operation (create clusters)
-- `check-cluster.sh` - Verify cluster status before deletion
+- `cluster` CLI - Unified cluster management interface (doc-010)
+- `lib/create-cluster.sh` - Inverse operation (create clusters) (doc-006)
+- `lib/check-cluster.sh` - Verify cluster status before deletion
+- `lib/cluster-utils.sh` - Shared utility functions for cluster operations
 - `Docker Compose Reference` - Understanding container lifecycle
 - `NiFi Backup & Recovery Guide` - Data backup strategies
 
 ## Summary
 
-`delete-cluster.sh` provides:
+`lib/delete-cluster.sh` provides:
 - **Safe deletion** with interactive confirmation
 - **Complete cleanup** of all cluster resources
 - **CA preservation** for other clusters
 - **Clear reporting** of what is being deleted
 - **Error handling** for edge cases
 - **Recovery guidance** for accidental deletions
+- **CLI integration** via `./cluster delete` command
 
 **Key Principle:** Cluster-specific resources are deleted, shared infrastructure (CA) is preserved.
+
+**Recommended Usage:** Use `./cluster delete <cluster_name> [--force]` for a consistent management experience alongside other cluster operations.
