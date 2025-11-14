@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiFi Cluster Architecture Diagrams Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4a90e2;
+            padding-bottom: 10px;
+        }
+        .diagram-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .diagram-section h2 {
+            color: #4a90e2;
+            margin-top: 0;
+        }
+        .buttons {
+            margin: 15px 0;
+        }
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-right: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #357abd;
+        }
+        .info {
+            background: #e7f3ff;
+            border-left: 4px solid #4a90e2;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .export-instructions {
+            background: #fff4e6;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .export-instructions h3 {
+            margin-top: 0;
+            color: #e65100;
+        }
+        .export-instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .export-instructions li {
+            margin: 8px 0;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ NiFi Cluster Architecture Diagrams</h1>
+
+        <div class="info">
+            <strong>📊 Interactive Diagrams</strong><br>
+            These professional draw.io diagrams show the complete architecture of the Multi-Cluster NiFi Platform.
+            Click the buttons below to open each diagram in draw.io for viewing and exporting.
+        </div>
+
+        <div class="diagram-section">
+            <h2>1. Single Cluster Architecture</h2>
+            <p>Detailed view of a single 3-node NiFi cluster with ZooKeeper ensemble, PKI infrastructure, and storage layout.</p>
+            <div class="buttons">
+                <button onclick="openDiagram('01-single-cluster-architecture.drawio')">
+                    🌐 Open in draw.io
+                </button>
+                <button onclick="viewLocal('01-single-cluster-architecture.drawio')">
+                    👁️ View Locally
+                </button>
+            </div>
+            <div id="status-01" class="status" style="display:none;"></div>
+        </div>
+
+        <div class="diagram-section">
+            <h2>2. Multi-Cluster Architecture</h2>
+            <p>Complete view of multiple independent clusters with network isolation, shared PKI, and port allocation strategy.</p>
+            <div class="buttons">
+                <button onclick="openDiagram('02-multi-cluster-architecture.drawio')">
+                    🌐 Open in draw.io
+                </button>
+                <button onclick="viewLocal('02-multi-cluster-architecture.drawio')">
+                    👁️ View Locally
+                </button>
+            </div>
+            <div id="status-02" class="status" style="display:none;"></div>
+        </div>
+
+        <div class="diagram-section">
+            <h2>3. Site-to-Site Communication Flow</h2>
+            <p>Detailed sequence diagram showing TLS handshake, peer discovery, and load-balanced data transfer between clusters.</p>
+            <div class="buttons">
+                <button onclick="openDiagram('03-site-to-site-communication.drawio')">
+                    🌐 Open in draw.io
+                </button>
+                <button onclick="viewLocal('03-site-to-site-communication.drawio')">
+                    👁️ View Locally
+                </button>
+            </div>
+            <div id="status-03" class="status" style="display:none;"></div>
+        </div>
+
+        <div class="export-instructions">
+            <h3>📤 How to Export Diagrams</h3>
+            <p><strong>Method 1: Online (Recommended)</strong></p>
+            <ol>
+                <li>Click "Open in draw.io" button above</li>
+                <li>The diagram will open in draw.io online editor</li>
+                <li>Go to <strong>File → Export as</strong></li>
+                <li>Choose format:
+                    <ul>
+                        <li><code>PNG</code> - For documentation and presentations (set zoom: 100%, border: 10px)</li>
+                        <li><code>SVG</code> - For scalable web graphics (check "Embed Images")</li>
+                        <li><code>PDF</code> - For high-quality prints</li>
+                    </ul>
+                </li>
+                <li>Save to <code>docs/diagrams/exports/</code></li>
+            </ol>
+
+            <p><strong>Method 2: VS Code Extension</strong></p>
+            <ol>
+                <li>Install extension: <code>hediet.vscode-drawio</code></li>
+                <li>Open <code>.drawio</code> file in VS Code</li>
+                <li>Right-click → "Export to..." → Choose format</li>
+            </ol>
+
+            <p><strong>Method 3: Desktop App</strong></p>
+            <ol>
+                <li>Download from <a href="https://github.com/jgraph/drawio-desktop/releases" target="_blank">github.com/jgraph/drawio-desktop</a></li>
+                <li>Open <code>.drawio</code> file</li>
+                <li>File → Export as → Choose format</li>
+            </ol>
+        </div>
+
+        <div class="info">
+            <strong>💡 Tips:</strong>
+            <ul>
+                <li>Use PNG for embedding in documentation (great for README.md)</li>
+                <li>Use SVG for web pages (scalable, looks sharp at any size)</li>
+                <li>Use PDF for printing or formal documentation</li>
+                <li>Recommended PNG export: Zoom 100%, Border 10px, White background</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function openDiagram(filename) {
+            // Open in draw.io online viewer/editor
+            const baseUrl = 'https://app.diagrams.net/';
+            const fileUrl = window.location.origin + window.location.pathname.replace('viewer.html', filename);
+            const drawioUrl = `${baseUrl}?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=${encodeURIComponent(filename)}#U${encodeURIComponent(fileUrl)}`;
+
+            window.open(drawioUrl, '_blank');
+
+            const statusId = 'status-' + filename.substring(0, 2);
+            const statusEl = document.getElementById(statusId);
+            statusEl.className = 'status success';
+            statusEl.textContent = '✓ Opened in new tab. You can now view and export the diagram.';
+            statusEl.style.display = 'block';
+        }
+
+        function viewLocal(filename) {
+            // For local viewing, we can use draw.io's embed viewer
+            const embedUrl = `https://viewer.diagrams.net/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=${encodeURIComponent(filename)}#U${encodeURIComponent(window.location.origin + window.location.pathname.replace('viewer.html', filename))}`;
+
+            window.open(embedUrl, '_blank');
+
+            const statusId = 'status-' + filename.substring(0, 2);
+            const statusEl = document.getElementById(statusId);
+            statusEl.className = 'status success';
+            statusEl.textContent = '✓ Opened in draw.io viewer (read-only). For editing, use "Open in draw.io".';
+            statusEl.style.display = 'block';
+        }
+
+        // Check if files exist
+        window.addEventListener('load', function() {
+            console.log('NiFi Architecture Diagrams Viewer loaded');
+            console.log('Available diagrams:');
+            console.log('  - 01-single-cluster-architecture.drawio');
+            console.log('  - 02-multi-cluster-architecture.drawio');
+            console.log('  - 03-site-to-site-communication.drawio');
+        });
+    </script>
+</body>
+</html>
