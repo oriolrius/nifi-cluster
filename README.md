@@ -39,6 +39,19 @@ open https://localhost:30443/nifi
 
 ## Architecture
 
+**Video Tutorial**: Learn how to build and connect multiple NiFi clusters with Site-to-Site communication:
+
+[![Apache NiFi 2.x — Build and Connect Clusters with Site-to-Site (S2S) Communication](https://img.youtube.com/vi/NM4LgNRZSmM/maxresdefault.jpg)](https://youtu.be/NM4LgNRZSmM)
+
+**[Watch: Apache NiFi 2.x — Build and Connect Clusters with Site-to-Site (S2S) Communication](https://youtu.be/NM4LgNRZSmM)**
+
+This comprehensive tutorial covers the complete architecture of this project, including:
+- Building multiple independent NiFi clusters
+- Shared PKI infrastructure and certificate management
+- Site-to-Site protocol configuration
+- Secure inter-cluster communication
+- Load balancing and high availability
+
 ### Single Cluster Architecture
 
 ```mermaid
@@ -780,6 +793,21 @@ curl -k -s \
 - **Load Balancing**: Automatic distribution across cluster nodes
 - **Compression**: Optional data compression in transit
 - **Batching**: Efficient batch transfers
+
+### Remote Process Group Tutorial
+
+For a detailed walkthrough of Remote Process Groups and Site-to-Site communication, watch this video tutorial:
+
+[![Understanding Remote Process Groups in Apache NiFi](https://img.youtube.com/vi/M3svwwwhzKU/maxresdefault.jpg)](https://youtu.be/M3svwwwhzKU)
+
+**[Watch: Understanding Remote Process Groups in Apache NiFi](https://youtu.be/M3svwwwhzKU)**
+
+This tutorial covers:
+- What Remote Process Groups are and how they work
+- Setting up Site-to-Site connections between NiFi instances
+- Configuring input and output ports
+- Security considerations for S2S communication
+- Load balancing across cluster nodes
 
 ### Why Shared CA Matters
 
