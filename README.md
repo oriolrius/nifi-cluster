@@ -39,6 +39,13 @@ open https://localhost:30443/nifi
 
 ## Architecture
 
+> **📊 Detailed Architecture Diagrams**: For more comprehensive and interactive architecture visualizations, see the professional draw.io diagrams in [`docs/diagrams/`](docs/diagrams/):
+> - [Single Cluster Architecture](docs/diagrams/01-single-cluster-architecture.drawio)
+> - [Multi-Cluster Architecture](docs/diagrams/02-multi-cluster-architecture.drawio)
+> - [Site-to-Site Communication Flow](docs/diagrams/03-site-to-site-communication.drawio)
+>
+> These diagrams provide detailed views of network topology, port allocations, PKI infrastructure, and inter-cluster communication flows.
+
 **Video Tutorial**: Learn how to build and connect multiple NiFi clusters with Site-to-Site communication:
 
 [![Apache NiFi 2.x — Build and Connect Clusters with Site-to-Site (S2S) Communication](https://img.youtube.com/vi/NM4LgNRZSmM/maxresdefault.jpg)](https://youtu.be/NM4LgNRZSmM)

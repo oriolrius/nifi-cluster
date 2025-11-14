@@ -1,0 +1,296 @@
+<mxfile host="app.diagrams.net" modified="2025-11-14T00:00:00.000Z" agent="draw.io" version="22.1.0">
+  <diagram name="Multi-Cluster Architecture" id="multi-cluster">
+    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Multi-Cluster NiFi Architecture - Complete Isolation" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="800" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Host Infrastructure Container -->
+        <mxCell id="host-container" value="Host Infrastructure" style="swimlane;whiteSpace=wrap;html=1;fontSize=18;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#FAFAFA;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1520" height="860" as="geometry" />
+        </mxCell>
+
+        <!-- Shared PKI Section -->
+        <mxCell id="pki-section" value="Shared PKI Infrastructure" style="swimlane;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#fff4e6;strokeColor=#d6b656;swimlaneFillColor=#FFF8E1;" vertex="1" parent="host-container">
+          <mxGeometry x="520" y="40" width="480" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="shared-ca" value="Certificate Authority (Shared by ALL Clusters)&lt;br&gt;&lt;br&gt;Location: certs/ca/&lt;br&gt;• ca-key.pem (CRITICAL - signs all cluster certificates)&lt;br&gt;• ca-cert.pem (trusted by all clusters)&lt;br&gt;• truststore.p12 (distributed to all nodes)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#ff6b6b;strokeColor=#cc0000;fontColor=#ffffff;fontStyle=1;align=left;verticalAlign=top;" vertex="1" parent="pki-section">
+          <mxGeometry x="20" y="40" width="440" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster 01 Container -->
+        <mxCell id="cluster01-container" value="Cluster01 - Network: cluster01-network" style="swimlane;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;swimlaneFillColor=#E6F2FF;" vertex="1" parent="host-container">
+          <mxGeometry x="40" y="220" width="640" height="580" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster01 NiFi Nodes -->
+        <mxCell id="c1-nifi-group" value="NiFi Nodes" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;" vertex="1" parent="cluster01-container">
+          <mxGeometry x="20" y="40" width="600" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-nifi-1" value="NiFi 1&lt;br&gt;:30443&lt;br&gt;:30100" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#4a90e2;strokeColor=#1e5a8f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster01-container">
+          <mxGeometry x="40" y="70" width="160" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-nifi-2" value="NiFi 2&lt;br&gt;:30444&lt;br&gt;:30101" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#4a90e2;strokeColor=#1e5a8f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster01-container">
+          <mxGeometry x="240" y="70" width="160" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-nifi-3" value="NiFi 3&lt;br&gt;:30445&lt;br&gt;:30102" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#4a90e2;strokeColor=#1e5a8f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster01-container">
+          <mxGeometry x="440" y="70" width="160" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster connections -->
+        <mxCell id="c1-cluster-conn-1-2" value="cluster" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;dashed=1;dashPattern=3 3;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-nifi-1" target="c1-nifi-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c1-cluster-conn-2-3" value="cluster" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;dashed=1;dashPattern=3 3;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-nifi-2" target="c1-nifi-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c1-cluster-conn-3-1" value="cluster" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;dashed=1;dashPattern=3 3;strokeColor=#666666;curved=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-nifi-3" target="c1-nifi-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Cluster01 ZooKeeper -->
+        <mxCell id="c1-zk-group" value="ZooKeeper Ensemble" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;" vertex="1" parent="cluster01-container">
+          <mxGeometry x="20" y="240" width="600" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-zk-1" value="ZK 1&lt;br&gt;:30181" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#50c878;strokeColor=#2d7a4f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster01-container">
+          <mxGeometry x="40" y="270" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-zk-2" value="ZK 2&lt;br&gt;:30182" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#50c878;strokeColor=#2d7a4f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster01-container">
+          <mxGeometry x="240" y="270" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-zk-3" value="ZK 3&lt;br&gt;:30183" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#50c878;strokeColor=#2d7a4f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster01-container">
+          <mxGeometry x="440" y="270" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ZK ensemble connections -->
+        <mxCell id="c1-zk-conn-1-2" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#82b366;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-zk-1" target="c1-zk-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c1-zk-conn-2-3" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#82b366;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-zk-2" target="c1-zk-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- NiFi to ZK connections (just a few representative lines) -->
+        <mxCell id="c1-nifi-zk-1" value="" style="endArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#1e5a8f;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-nifi-1" target="c1-zk-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c1-nifi-zk-2" value="" style="endArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#1e5a8f;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-nifi-2" target="c1-zk-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c1-nifi-zk-3" value="" style="endArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#1e5a8f;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster01-container" source="c1-nifi-3" target="c1-zk-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Cluster01 Info -->
+        <mxCell id="c1-info" value="ZK Root: /nifi&lt;br&gt;Ports: 30000-30999&lt;br&gt;Volumes: clusters/cluster01/&lt;br&gt;Docker Compose: docker-compose-cluster01.yml" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;" vertex="1" parent="cluster01-container">
+          <mxGeometry x="20" y="400" width="600" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-certs" value="Certificates:&lt;br&gt;• CN=cluster01.nifi-1, CN=cluster01.nifi-2, CN=cluster01.nifi-3&lt;br&gt;• All signed by Shared CA&lt;br&gt;• Location: clusters/cluster01/certs/" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#fff4e6;strokeColor=#d6b656;align=left;verticalAlign=top;" vertex="1" parent="cluster01-container">
+          <mxGeometry x="20" y="480" width="600" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster 02 Container -->
+        <mxCell id="cluster02-container" value="Cluster02 - Network: cluster02-network" style="swimlane;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#F3E5F5;" vertex="1" parent="host-container">
+          <mxGeometry x="840" y="220" width="640" height="580" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster02 NiFi Nodes -->
+        <mxCell id="c2-nifi-group" value="NiFi Nodes" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;" vertex="1" parent="cluster02-container">
+          <mxGeometry x="20" y="40" width="600" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-nifi-1" value="NiFi 1&lt;br&gt;:31443&lt;br&gt;:31100" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#7b68ee;strokeColor=#5a3f9e;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster02-container">
+          <mxGeometry x="40" y="70" width="160" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-nifi-2" value="NiFi 2&lt;br&gt;:31444&lt;br&gt;:31101" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#7b68ee;strokeColor=#5a3f9e;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster02-container">
+          <mxGeometry x="240" y="70" width="160" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-nifi-3" value="NiFi 3&lt;br&gt;:31445&lt;br&gt;:31102" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#7b68ee;strokeColor=#5a3f9e;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster02-container">
+          <mxGeometry x="440" y="70" width="160" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster connections -->
+        <mxCell id="c2-cluster-conn-1-2" value="cluster" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;dashed=1;dashPattern=3 3;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-nifi-1" target="c2-nifi-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c2-cluster-conn-2-3" value="cluster" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;dashed=1;dashPattern=3 3;strokeColor=#666666;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-nifi-2" target="c2-nifi-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c2-cluster-conn-3-1" value="cluster" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;dashed=1;dashPattern=3 3;strokeColor=#666666;curved=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-nifi-3" target="c2-nifi-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Cluster02 ZooKeeper -->
+        <mxCell id="c2-zk-group" value="ZooKeeper Ensemble" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;" vertex="1" parent="cluster02-container">
+          <mxGeometry x="20" y="240" width="600" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-zk-1" value="ZK 1&lt;br&gt;:31181" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#50c878;strokeColor=#2d7a4f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster02-container">
+          <mxGeometry x="40" y="270" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-zk-2" value="ZK 2&lt;br&gt;:31182" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#50c878;strokeColor=#2d7a4f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster02-container">
+          <mxGeometry x="240" y="270" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-zk-3" value="ZK 3&lt;br&gt;:31183" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#50c878;strokeColor=#2d7a4f;fontColor=#ffffff;fontStyle=1" vertex="1" parent="cluster02-container">
+          <mxGeometry x="440" y="270" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ZK ensemble connections -->
+        <mxCell id="c2-zk-conn-1-2" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#82b366;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-zk-1" target="c2-zk-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c2-zk-conn-2-3" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#82b366;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-zk-2" target="c2-zk-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- NiFi to ZK connections (just a few representative lines) -->
+        <mxCell id="c2-nifi-zk-1" value="" style="endArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#1e5a8f;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-nifi-1" target="c2-zk-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c2-nifi-zk-2" value="" style="endArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#1e5a8f;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-nifi-2" target="c2-zk-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="c2-nifi-zk-3" value="" style="endArrow=classic;html=1;rounded=0;fontSize=9;strokeColor=#1e5a8f;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="cluster02-container" source="c2-nifi-3" target="c2-zk-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="400" as="sourcePoint" />
+            <mxPoint x="350" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Cluster02 Info -->
+        <mxCell id="c2-info" value="ZK Root: /nifi&lt;br&gt;Ports: 31000-31999&lt;br&gt;Volumes: clusters/cluster02/&lt;br&gt;Docker Compose: docker-compose-cluster02.yml" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;" vertex="1" parent="cluster02-container">
+          <mxGeometry x="20" y="400" width="600" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-certs" value="Certificates:&lt;br&gt;• CN=cluster02.nifi-1, CN=cluster02.nifi-2, CN=cluster02.nifi-3&lt;br&gt;• All signed by Shared CA&lt;br&gt;• Location: clusters/cluster02/certs/" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#fff4e6;strokeColor=#d6b656;align=left;verticalAlign=top;" vertex="1" parent="cluster02-container">
+          <mxGeometry x="20" y="480" width="600" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- CA signing relationships -->
+        <mxCell id="ca-to-c1" value="signs certificates" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#d6b656;dashed=1;dashPattern=5 5;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="host-container" source="shared-ca" target="c1-certs">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="600" y="400" as="sourcePoint" />
+            <mxPoint x="650" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="ca-to-c2" value="signs certificates" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#d6b656;dashed=1;dashPattern=5 5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="host-container" source="shared-ca" target="c2-certs">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="600" y="400" as="sourcePoint" />
+            <mxPoint x="650" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Storage Section -->
+        <mxCell id="storage-section" value="Storage (Isolated per Cluster)" style="swimlane;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#F9F9F9;" vertex="1" parent="1">
+          <mxGeometry x="40" y="960" width="1520" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1-storage" value="Cluster01 Volumes&lt;br&gt;&lt;br&gt;clusters/cluster01/volumes/&lt;br&gt;• cluster01.nifi-{1,2,3}/ (content, flowfile, provenance, database)&lt;br&gt;• cluster01.zookeeper-{1,2,3}/ (data, datalog, logs)" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;" vertex="1" parent="storage-section">
+          <mxGeometry x="40" y="40" width="640" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c2-storage" value="Cluster02 Volumes&lt;br&gt;&lt;br&gt;clusters/cluster02/volumes/&lt;br&gt;• cluster02.nifi-{1,2,3}/ (content, flowfile, provenance, database)&lt;br&gt;• cluster02.zookeeper-{1,2,3}/ (data, datalog, logs)" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;" vertex="1" parent="storage-section">
+          <mxGeometry x="840" y="40" width="640" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Key Points Box -->
+        <mxCell id="key-points" value="Key Architecture Principles:&lt;br&gt;&lt;br&gt;1. Complete Isolation: Each cluster has its own Docker network (cluster01-network vs cluster02-network)&lt;br&gt;2. Separate Port Ranges: cluster01 uses 30xxx, cluster02 uses 31xxx (no conflicts)&lt;br&gt;3. Shared PKI: Single CA signs all certificates, enabling inter-cluster trust and Site-to-Site communication&lt;br&gt;4. Independent ZooKeeper: Each cluster has its own 3-node ZooKeeper ensemble&lt;br&gt;5. Isolated Storage: Completely separate volume directories for each cluster&lt;br&gt;6. Unique Certificates: Each node has unique CN but all trusted by same CA&lt;br&gt;7. No Cross-Cluster Communication: Unless explicitly configured via Site-to-Site protocol" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1600" y="80" width="560" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Benefits Box -->
+        <mxCell id="benefits" value="Benefits of Multi-Cluster Architecture:&lt;br&gt;&lt;br&gt;✓ Environment Separation: Dev, Staging, Production on same host&lt;br&gt;✓ Multi-Tenancy: Dedicated clusters per team/project&lt;br&gt;✓ Resource Isolation: No interference between clusters&lt;br&gt;✓ Easy Scaling: Add new clusters on-demand with ./cluster create&lt;br&gt;✓ Simplified PKI: One CA to manage instead of multiple&lt;br&gt;✓ Future-Ready: Can enable S2S for inter-cluster data transfer&lt;br&gt;✓ Independent Lifecycle: Start, stop, update clusters independently&lt;br&gt;✓ Port Management: Automatic port allocation, no conflicts" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff4e6;strokeColor=#d6b656;align=left;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1600" y="300" width="560" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Port Allocation Box -->
+        <mxCell id="port-allocation" value="Port Allocation Formula:&lt;br&gt;&lt;br&gt;BASE_PORT = 29000 + (CLUSTER_NUM × 1000)&lt;br&gt;&lt;br&gt;Examples:&lt;br&gt;• cluster01 (NUM=1): BASE=30000 → HTTPS: 30443-30445, S2S: 30100-30102, ZK: 30181-30183&lt;br&gt;• cluster02 (NUM=2): BASE=31000 → HTTPS: 31443-31445, S2S: 31100-31102, ZK: 31181-31183&lt;br&gt;• cluster05 (NUM=5): BASE=34000 → HTTPS: 34443-34445, S2S: 34100-34102, ZK: 34181-34183&lt;br&gt;• cluster10 (NUM=10): BASE=39000 → HTTPS: 39443-39445, S2S: 39100-39102, ZK: 39181-39183" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1600" y="520" width="560" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster Creation Box -->
+        <mxCell id="cluster-creation" value="Creating New Clusters:&lt;br&gt;&lt;br&gt;$ ./cluster create cluster01 3     # Create cluster01 with 3 nodes&lt;br&gt;$ ./cluster start cluster01         # Start cluster01&lt;br&gt;$ ./cluster wait cluster01          # Wait for readiness&lt;br&gt;$ ./cluster test cluster01          # Validate cluster health&lt;br&gt;&lt;br&gt;$ ./cluster create cluster02 5     # Create cluster02 with 5 nodes&lt;br&gt;$ ./cluster start cluster02         # Start cluster02&lt;br&gt;&lt;br&gt;$ ./cluster list                    # List all clusters" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;fontStyle=1;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="720" width="560" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Network Isolation Note -->
+        <mxCell id="network-isolation" value="Network Isolation Detail:&lt;br&gt;&lt;br&gt;Cluster01 Network (cluster01-network):&lt;br&gt;• cluster01.nifi-{1,2,3} can communicate&lt;br&gt;• cluster01.zookeeper-{1,2,3} can communicate&lt;br&gt;• CANNOT reach cluster02 nodes&lt;br&gt;&lt;br&gt;Cluster02 Network (cluster02-network):&lt;br&gt;• cluster02.nifi-{1,2,3} can communicate&lt;br&gt;• cluster02.zookeeper-{1,2,3} can communicate&lt;br&gt;• CANNOT reach cluster01 nodes&lt;br&gt;&lt;br&gt;Cross-cluster communication requires:&lt;br&gt;• DOMAIN configured in .env&lt;br&gt;• extra_hosts in docker-compose&lt;br&gt;• Site-to-Site protocol setup" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1600" y="940" width="560" height="280" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
