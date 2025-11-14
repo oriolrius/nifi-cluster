@@ -403,11 +403,11 @@ Scripts automatically detect cluster parameters:
 # Create cluster01 with 3 nodes (default)
 ./cluster create cluster01
 
-# Validate configuration (31 checks)
-./cluster validate cluster01
-
 # Start cluster
 ./cluster start cluster01
+
+# Validate configuration (31 checks)
+./cluster validate cluster01
 
 # Wait for cluster to be ready (auto-detects timeout)
 ./cluster wait cluster01
