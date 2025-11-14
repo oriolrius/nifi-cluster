@@ -8,6 +8,13 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${SCRIPT_DIR}/lib/cluster-utils.sh"
 
+# Load environment variables (for DOMAIN)
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+    set -a
+    source "${SCRIPT_DIR}/.env"
+    set +a
+fi
+
 # Counters
 PASSED=0
 FAILED=0
@@ -229,7 +236,8 @@ for i in $(seq 1 "$NODE_COUNT"); do
     print_check "ADR$i" "Checking ${CLUSTER_NAME}.nifi-$i node address"
     if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" ]; then
         NODE_ADDR=$(grep "^nifi.cluster.node.address=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
-        EXPECTED_ADDR="${CLUSTER_NAME}.nifi-$i"
+        NODE_FQDN="${CLUSTER_NAME}.nifi-${i}.${DOMAIN}"
+        EXPECTED_ADDR="${NODE_FQDN}"
         if [ "$NODE_ADDR" == "$EXPECTED_ADDR" ]; then
             print_pass
         else
@@ -245,7 +253,7 @@ for i in $(seq 1 "$NODE_COUNT"); do
     print_check "RMT$i" "Checking ${CLUSTER_NAME}.nifi-$i remote input host"
     if [ -f "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" ]; then
         REMOTE_HOST=$(grep "^nifi.remote.input.host=" "$CLUSTER_DIR/conf/${CLUSTER_NAME}.nifi-$i/nifi.properties" | cut -d'=' -f2 | tr -d ' ')
-        EXPECTED_HOST="${CLUSTER_NAME}.nifi-$i"
+        EXPECTED_HOST="${CLUSTER_NAME}.nifi-${i}.${DOMAIN}"
         if [ "$REMOTE_HOST" == "$EXPECTED_HOST" ]; then
             print_pass
         else

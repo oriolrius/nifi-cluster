@@ -24,9 +24,18 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Load DOMAIN from .env file if it exists
 DOMAIN=""
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    # Read DOMAIN from .env file (handle comments and whitespace)
-    DOMAIN=$(grep "^DOMAIN=" "$PROJECT_ROOT/.env" | cut -d '=' -f2 | tr -d ' \r\n' || echo "")
+ENV_FILE="$PROJECT_ROOT/.env"
+if [ -f "$ENV_FILE" ]; then
+    # Source .env file to load DOMAIN variable
+    # Use a subshell to avoid polluting current environment
+    DOMAIN=$(set -a; source "$ENV_FILE" 2>/dev/null; echo "$DOMAIN")
+    # Fallback to grep if sourcing fails or DOMAIN is empty
+    if [ -z "$DOMAIN" ]; then
+        DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d '=' -f2 | tr -d ' \r\n' | tr -d '"' | tr -d "'" || echo "")
+        exit 1
+    fi
+else
+    echo "Warning: .env file not found at $ENV_FILE"
 fi
 
 # Validate input parameters
@@ -288,7 +297,7 @@ nifi.cluster.protocol.is.secure=true
 # Cluster Node Properties (node-specific)
 nifi.cluster.is.node=true
 nifi.cluster.leader.election.implementation=CuratorLeaderElectionManager
-nifi.cluster.node.address=${NODE_HOSTNAME}
+nifi.cluster.node.address=${NODE_FQDN}
 nifi.cluster.node.protocol.port=${CLUSTER_PROTOCOL_BASE}
 nifi.cluster.node.protocol.max.threads=50
 nifi.cluster.node.event.history.size=25

@@ -220,6 +220,7 @@ sequenceDiagram
 ```
 
 **Key Points**:
+
 - **Shared CA**: All clusters trust the same Certificate Authority (certs/ca/)
 - **Mutual TLS**: Both sides authenticate using certificates signed by shared CA
 - **Site-to-Site Protocol**: NiFi's secure data transfer protocol (ports 30100-30102, 31100-31102, etc.)
@@ -301,6 +302,7 @@ nifi-cluster/
 ```
 
 **Key Principles**:
+
 - All cluster-specific data is in `clusters/<CLUSTER_NAME>/` (gitignored)
 - Shared CA enables inter-cluster communication
 - Each cluster has its own Docker network and docker-compose file
@@ -316,26 +318,26 @@ BASE_PORT = 29000 + (CLUSTER_NUM × 1000)
 
 ### Port Mapping
 
-| Service | Port Offset | Example (cluster01) | Example (cluster02) |
-|---------|-------------|---------------------|---------------------|
-| NiFi HTTPS (Node 1) | +443 | 30443 | 31443 |
-| NiFi HTTPS (Node 2) | +444 | 30444 | 31444 |
-| NiFi HTTPS (Node 3) | +445 | 30445 | 31445 |
-| Site-to-Site (Node 1) | +100 | 30100 | 31100 |
-| Site-to-Site (Node 2) | +101 | 30101 | 31101 |
-| Site-to-Site (Node 3) | +102 | 30102 | 31102 |
-| ZooKeeper (Node 1) | +181 | 30181 | 31181 |
-| ZooKeeper (Node 2) | +182 | 30182 | 31182 |
-| ZooKeeper (Node 3) | +183 | 30183 | 31183 |
+| Service               | Port Offset | Example (cluster01) | Example (cluster02) |
+| --------------------- | ----------- | ------------------- | ------------------- |
+| NiFi HTTPS (Node 1)   | +443        | 30443               | 31443               |
+| NiFi HTTPS (Node 2)   | +444        | 30444               | 31444               |
+| NiFi HTTPS (Node 3)   | +445        | 30445               | 31445               |
+| Site-to-Site (Node 1) | +100        | 30100               | 31100               |
+| Site-to-Site (Node 2) | +101        | 30101               | 31101               |
+| Site-to-Site (Node 3) | +102        | 30102               | 31102               |
+| ZooKeeper (Node 1)    | +181        | 30181               | 31181               |
+| ZooKeeper (Node 2)    | +182        | 30182               | 31182               |
+| ZooKeeper (Node 3)    | +183        | 30183               | 31183               |
 
 ### Cluster Examples
 
-| Cluster Name | Cluster # | HTTPS Ports | S2S Ports | ZK Ports |
-|--------------|-----------|-------------|-----------|----------|
-| cluster01 | 1 | 30443-30445 | 30100-30102 | 30181-30183 |
-| cluster02 | 2 | 31443-31445 | 31100-31102 | 31181-31183 |
-| cluster03 | 3 | 32443-32445 | 32100-32102 | 32181-32183 |
-| production05 | 5 | 34443-34445 | 34100-34102 | 34181-34183 |
+| Cluster Name | Cluster # | HTTPS Ports | S2S Ports   | ZK Ports    |
+| ------------ | --------- | ----------- | ----------- | ----------- |
+| cluster01    | 1         | 30443-30445 | 30100-30102 | 30181-30183 |
+| cluster02    | 2         | 31443-31445 | 31100-31102 | 31181-31183 |
+| cluster03    | 3         | 32443-32445 | 32100-32102 | 32181-32183 |
+| production05 | 5         | 34443-34445 | 34100-34102 | 34181-34183 |
 
 ## Cluster Management CLI
 
@@ -385,6 +387,7 @@ The `cluster` script provides a unified interface for all cluster operations.
 ### Auto-Detection
 
 Scripts automatically detect cluster parameters:
+
 - Node count from workspace structure
 - Base port from cluster number
 - Certificate paths from cluster name
@@ -579,34 +582,36 @@ The `validate` script performs comprehensive pre-deployment validation:
 ```
 
 **Validation Categories**:
+
 1. **Directory Structure** (6 checks)
+
    - Volumes directories exist
    - Certificates directories exist
    - Configuration directories exist
-
 2. **Certificate Chain** (9 checks)
+
    - CA certificate valid
    - Node keystores exist and valid
    - Node truststores exist and valid
    - Certificate chain integrity
-
 3. **Configuration Files** (7 checks)
+
    - nifi.properties exists for all nodes
    - authorizers.xml, bootstrap.conf, etc.
    - Required properties set correctly
-
 4. **Node Addresses** (3 checks)
+
    - Cluster node addresses correct
    - Site-to-Site hosts configured
    - ZooKeeper connect string valid
-
 5. **Docker Compose** (4 checks)
+
    - File exists and valid YAML
    - Service count matches node count
    - Port mappings correct
    - No port conflicts
-
 6. **Port Availability** (2 checks)
+
    - No duplicate ports
    - Ports not in use
 
@@ -619,45 +624,47 @@ The `test` script runs comprehensive runtime tests:
 ```
 
 **Test Categories**:
+
 1. **Prerequisites** (4 tests)
+
    - curl, jq, docker installed
    - CA certificate accessible
-
 2. **Container Status** (6 tests)
+
    - All containers running
    - NiFi nodes healthy
    - ZooKeeper nodes healthy
-
 3. **Web UI Access** (3 tests)
+
    - HTTPS endpoints responding
    - SSL/TLS handshake successful
    - Login page accessible
-
 4. **Authentication** (3 tests)
+
    - Single-user credentials work
    - JWT token generation
    - Authenticated API access
-
 5. **Backend API** (3 tests)
+
    - Cluster summary accessible
    - All nodes connected
    - System diagnostics available
-
 6. **Cluster Status** (2 tests)
+
    - Cluster coordinator elected
    - All nodes reporting to coordinator
-
 7. **ZooKeeper Health** (3 tests)
+
    - All ZK nodes responding
    - Ensemble healthy
    - NiFi registered in ZooKeeper
-
 8. **SSL/TLS Validation** (3 tests)
+
    - Certificate chain valid
    - Server certificates trusted
    - Mutual TLS working
-
 9. **Flow Replication** (5 tests)
+
    - Create processor on node 1
    - Verify replication to node 2
    - Verify replication to node 3
@@ -687,6 +694,7 @@ DOMAIN=                                   # Optional: Custom domain (e.g., ymbih
 ```
 
 **To customize**:
+
 ```bash
 # Edit before starting cluster
 vim .env
@@ -705,22 +713,23 @@ All clusters share the same Certificate Authority (CA), enabling secure Site-to-
 ### Site-to-Site Setup
 
 1. **Verify Both Clusters Running**
+
    ```bash
    ./cluster health cluster01
    ./cluster health cluster02
    ```
-
 2. **In Source Cluster (cluster01) NiFi UI**:
+
    - Add **Remote Process Group** (RPG)
    - Set URL: `https://cluster02.nifi-1.ymbihq.local:31443/nifi`
    - The RPG will automatically discover all cluster02 nodes via S2S protocol
-
 3. **In Target Cluster (cluster02) NiFi UI**:
+
    - Create **Input Port** (for receiving data)
    - Or **Output Port** (for sending data)
    - Give it a name (e.g., "Data from Cluster01")
-
 4. **Connect Source to RPG**:
+
    - In cluster01, create connection from processor to RPG
    - Select the target port (will appear in RPG)
    - Data now flows securely between clusters
@@ -737,6 +746,7 @@ curl -k -s \
 ```
 
 **Expected Response**:
+
 ```json
 {
   "peers": [
@@ -774,11 +784,13 @@ curl -k -s \
 ### Why Shared CA Matters
 
 Without shared CA:
+
 - Each cluster would need to import the other cluster's CA
 - Complex certificate exchange process
 - Manual trust relationship setup
 
 With shared CA:
+
 - All clusters automatically trust each other
 - No additional certificate configuration
 - Secure by default
@@ -953,24 +965,25 @@ vim .env
 ## Security Best Practices
 
 1. **Change Default Passwords**
+
    ```bash
    vim .env
    # Update NIFI_SINGLE_USER_PASSWORD
    ./cluster reconfig cluster01 --config
    ./cluster restart cluster01
    ```
-
 2. **Protect CA Private Key**
+
    ```bash
    chmod 600 certs/ca/ca-key.pem
    chown root:root certs/ca/ca-key.pem
    ```
-
 3. **Use Strong Passwords**
+
    - Minimum 12 characters
    - Mix of uppercase, lowercase, numbers, symbols
-
 4. **Regular Updates**
+
    ```bash
    # Update NIFI_VERSION in .env
    vim .env
@@ -978,24 +991,24 @@ vim .env
    docker compose -f docker-compose-cluster01.yml pull
    ./cluster start cluster01
    ```
-
 5. **Firewall Rules**
+
    ```bash
    # Only allow access from specific IPs
    sudo ufw allow from 192.168.1.0/24 to any port 30443 proto tcp
    ```
-
 6. **Production Authentication**
+
    - Replace single-user authentication with LDAP or OIDC
    - Configure in authorizers.xml
    - See NiFi documentation for details
-
 7. **Regular Backups**
+
    - Daily automated backups
    - Test restore procedures quarterly
    - Store CA backup off-site
-
 8. **Monitor Security Logs**
+
    ```bash
    ./cluster logs cluster01 nifi-1 | grep -i "authentication\|authorization"
    ```
@@ -1070,6 +1083,7 @@ echo "DOMAIN=ymbihq.local" >> .env
 ## Resources
 
 ### Documentation
+
 - [Apache NiFi Documentation](https://nifi.apache.org/docs.html)
 - [NiFi Clustering Guide](https://nifi.apache.org/docs/nifi-docs/html/administration-guide.html#clustering)
 - [Site-to-Site Protocol](https://nifi.apache.org/docs/nifi-docs/html/user-guide.html#site-to-site)
@@ -1077,6 +1091,7 @@ echo "DOMAIN=ymbihq.local" >> .env
 - [Docker Compose Reference](https://docs.docker.com/compose/)
 
 ### Project Files
+
 - `CLAUDE.md` - Comprehensive project instructions for AI assistants
 - `backlog/docs/` - Design documents and architecture decisions
 - `lib/` - Implementation scripts and utilities

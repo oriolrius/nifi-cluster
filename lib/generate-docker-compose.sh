@@ -182,8 +182,8 @@ for i in $(seq 1 "$NODE_COUNT"); do
   # NiFi Cluster Node $i
   ${CLUSTER_NAME}-nifi-${i}:
     image: apache/nifi:\${NIFI_VERSION:-latest}
-    container_name: ${CLUSTER_NAME}.nifi-${i}
-    hostname: ${CLUSTER_NAME}.nifi-${i}
+    container_name: ${NODE_FQDN}
+    hostname: ${NODE_FQDN}
     networks:
       - ${CLUSTER_NAME}-network
     ports:
@@ -193,13 +193,13 @@ for i in $(seq 1 "$NODE_COUNT"); do
       # Cluster Configuration
       NIFI_CLUSTER_IS_NODE: "true"
       NIFI_CLUSTER_NODE_PROTOCOL_PORT: 8082
-      NIFI_CLUSTER_NODE_ADDRESS: ${CLUSTER_NAME}.nifi-${i}
+      NIFI_CLUSTER_NODE_ADDRESS: ${NODE_FQDN}
       NIFI_ZK_CONNECT_STRING: ${ZK_CONNECT}
       NIFI_ELECTION_MAX_WAIT: 1 min
 
       # Web Properties - HTTPS
       NIFI_WEB_HTTPS_PORT: ${HTTPS_PORT}
-      NIFI_WEB_HTTPS_HOST: ${CLUSTER_NAME}.nifi-${i}
+      NIFI_WEB_HTTPS_HOST: ${NODE_FQDN}
       NIFI_WEB_HTTPS_NETWORK_INTERFACE_DEFAULT: eth0
       NIFI_WEB_PROXY_HOST: ${NODE_PROXY_HOST}
 

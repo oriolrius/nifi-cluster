@@ -153,13 +153,24 @@ wait_for_cluster() {
     local elapsed=0
     local interval=5
 
+    # Load DOMAIN from .env if available
+    local domain="${DOMAIN}"
+    if [ -z "$domain" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/../.env" ]; then
+        domain=$(grep "^DOMAIN=" "$(dirname "${BASH_SOURCE[0]}")/../.env" | cut -d'=' -f2)
+    fi
+
     echo -e "${YELLOW}Waiting for ${cluster_name} to be ready (up to ${timeout}s)...${NC}"
 
     while [ $elapsed -lt $timeout ]; do
         local ready_count=0
 
         for i in $(seq 1 "$node_count"); do
+            # Construct container name with FQDN if domain is set
             local container="${cluster_name}.nifi-${i}"
+            if [ -n "$domain" ]; then
+                container="${cluster_name}.nifi-${i}.${domain}"
+            fi
+
             if docker exec "$container" test -f /opt/nifi/nifi-current/logs/nifi-app.log 2>/dev/null; then
                 if docker exec "$container" grep -q "Started Application" /opt/nifi/nifi-current/logs/nifi-app.log 2>/dev/null; then
                     ready_count=$((ready_count + 1))
