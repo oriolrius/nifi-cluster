@@ -41,7 +41,7 @@ open https://localhost:30443/nifi
 
 **Video Tutorial**: Learn how to build and connect multiple NiFi clusters with Site-to-Site communication:
 
-[![Apache NiFi 2.x — Build and Connect Clusters with Site-to-Site (S2S) Communication](https://img.youtube.com/vi/NM4LgNRZSmM/maxresdefault.jpg)](https://youtu.be/NM4LgNRZSmM)
+[![Apache NiFi 2.x — Build and Connect Clusters with Site-to-Site (S2S) Communication](https://img.youtube.com/vi/NM4LgNRZSmM/hqdefault.jpg)](https://youtu.be/NM4LgNRZSmM)
 
 **[Watch: Apache NiFi 2.x — Build and Connect Clusters with Site-to-Site (S2S) Communication](https://youtu.be/NM4LgNRZSmM)**
 
